@@ -3,7 +3,7 @@ package logger
 import (
 	"io"
 
-	"github.com/natefinch/lumberjack"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"github.com/sirupsen/logrus"
 )
 

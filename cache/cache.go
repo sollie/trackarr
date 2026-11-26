@@ -1,57 +1,48 @@
 package cache
 
 import (
-	"fmt"
+	"context"
 	"time"
 
-	"github.com/sollie/trackarr/logger"
+	"github.com/jellydator/ttlcache/v3"
 
-	"github.com/ReneKroon/ttlcache/v2"
+	"github.com/sollie/trackarr/logger"
 )
 
 var (
-	cache *ttlcache.Cache
+	cache *ttlcache.Cache[string, CacheItem]
 	log   = logger.GetLogger("cache")
 )
 
 /* Public */
 func Close() {
-	_ = cache.Close()
+	cache.Stop()
 }
 
 func AddItem(key string, value *CacheItem) {
-	_ = cache.Set(key, *value)
+	cache.Set(key, *value, ttlcache.DefaultTTL)
 }
 
 func GetItem(key string) (*CacheItem, bool) {
-	result, err := cache.Get(key)
-	if err != nil {
+	entry := cache.Get(key, ttlcache.WithDisableTouchOnHit[string, CacheItem]())
+	if entry == nil {
 		return nil, false
 	}
 
-	// assert result type
-	item, ok := result.(CacheItem)
-	if !ok {
-		_ = cache.Remove(key)
-		return nil, false
-	}
-
+	item := entry.Value()
 	return &item, true
 }
 
 /* Private */
 func Init() error {
-	cache = ttlcache.NewCache()
+	cache = ttlcache.New(ttlcache.WithTTL[string, CacheItem](60 * time.Second))
+	cache.OnEviction(cacheItemExpired)
 
-	if err := cache.SetTTL(60 * time.Second); err != nil {
-		return fmt.Errorf("set ttl: %w", err)
-	}
-
-	cache.SetExpirationCallback(cacheItemExpired)
+	go cache.Start()
 	return nil
 }
 
 /* Private - Callbacks */
-func cacheItemExpired(key string, value interface{}) {
-	log.Tracef("Cleared item: %s", key)
+func cacheItemExpired(_ context.Context, _ ttlcache.EvictionReason, item *ttlcache.Item[string, CacheItem]) {
+	log.Tracef("Cleared item: %s", item.Key())
 }

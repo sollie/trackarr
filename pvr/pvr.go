@@ -6,7 +6,7 @@ import (
 	"github.com/sollie/trackarr/logger"
 	"strings"
 
-	"github.com/antonmedv/expr"
+	"github.com/expr-lang/expr"
 	"github.com/pkg/errors"
 )
 

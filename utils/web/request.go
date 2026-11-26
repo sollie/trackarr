@@ -104,9 +104,16 @@ func Do(r Request) (*req.Resp, error) {
 		inputs = append(inputs, r.Body)
 	}
 
+	// use a fresh backoff per request, so attempts are never shared with the caller's policy
 	var retry Retry
 	if r.Retry != nil {
-		retry = *r.Retry
+		retry.MaxAttempts = r.Retry.MaxAttempts
+		retry.RetryableStatusCodes = r.Retry.RetryableStatusCodes
+		retry.ExpectedContentType = r.Retry.ExpectedContentType
+		retry.Factor = r.Retry.Factor
+		retry.Jitter = r.Retry.Jitter
+		retry.Min = r.Retry.Min
+		retry.Max = r.Retry.Max
 	}
 
 	var resp *req.Resp

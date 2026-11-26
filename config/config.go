@@ -10,7 +10,7 @@ import (
 	stringutils "github.com/sollie/trackarr/utils/strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/lithammer/shortuuid/v3"
+	"github.com/lithammer/shortuuid/v5"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
