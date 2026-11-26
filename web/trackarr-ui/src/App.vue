@@ -1,83 +1,52 @@
+<script setup>
+import { onEvent } from '@/lib/socket'
+import { useDisplay } from 'vuetify'
+import { Toaster, toast } from 'vue-sonner'
+import 'vue-sonner/style.css'
+
+const { xs } = useDisplay()
+
+const links = [
+  { to: '/', title: 'Home', icon: 'mdi-home' },
+  { to: '/status', title: 'Tracker Statuses', icon: 'mdi-access-point' },
+  { to: '/logs', title: 'Logs', icon: 'mdi-folder' },
+]
+
+const levels = { info: toast.info, success: toast.success, warn: toast.warning, error: toast.error }
+
+onEvent('alert', ({ level, title, msg }) => levels[level]?.(title || msg, { description: title ? msg : undefined }))
+</script>
+
 <template>
   <v-app>
-    <v-app-bar v-if="this.$vuetify.breakpoint.name == 'xs'" app color="accent-4" dark>
+    <v-app-bar v-if="xs">
       <v-menu>
-        <template v-slot:activator="{ on }">
-          <v-btn icon v-on="on">
-            <v-icon>mdi-menu</v-icon>
-          </v-btn>
+        <template #activator="{ props }">
+          <v-btn icon="mdi-menu" aria-label="Navigation menu" v-bind="props" />
         </template>
-
         <v-list>
-          <v-list-item link to="/">
-
-            <v-list-item-title>
-              Home
-            </v-list-item-title>
-
-          </v-list-item>
-          <v-list-item link to="/status">
-
-            <v-list-item-title>
-              Tracker Statuses
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item link to="/logs">
-
-            <v-list-item-title>
-              Logs
-            </v-list-item-title>
-          </v-list-item>
+          <v-list-item v-for="link in links" :key="link.to" :to="link.to" :title="link.title" />
         </v-list>
       </v-menu>
-     <v-toolbar-title>Trackarr</v-toolbar-title>
+      <v-toolbar-title>Trackarr</v-toolbar-title>
     </v-app-bar>
-    <v-navigation-drawer v-if="this.$vuetify.breakpoint.name != 'xs'" app mini-variant permanent>
-      <v-list dense nav>
-        <v-list-item-title class="pa-3 text-center text-uppercase">
-          <span class="font-weight-black">T</span>
-        </v-list-item-title>
-        <v-divider></v-divider>
-        <v-list-item link to="/">
-          <v-list-item-icon>
-            <v-icon>mdi-home</v-icon>
-          </v-list-item-icon>
-          <v-list-item-content>
-          </v-list-item-content>
 
-        </v-list-item>
-        <v-list-item link to="/status">
-          <v-list-item-icon>
-            <v-icon>mdi-access-point</v-icon>
-          </v-list-item-icon>
-          <v-list-item-content>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item link to="/logs">
-          <v-list-item-icon>
-            <v-icon>mdi-folder</v-icon>
-          </v-list-item-icon>
-          <v-list-item-content>
-          </v-list-item-content>
-        </v-list-item>
-        
+    <v-navigation-drawer v-else rail permanent>
+      <v-list density="compact" nav>
+        <v-list-item class="text-center text-uppercase font-weight-black" title="T" />
+        <v-divider />
+        <v-list-item v-for="link in links" :key="link.to" :to="link.to" :prepend-icon="link.icon" :title="link.title" />
       </v-list>
     </v-navigation-drawer>
-    <v-content>
-      <transition name="fade" mode="out-in">
-        <router-view />
-      </transition>
 
-    </v-content>
+    <v-main>
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </v-main>
+
+    <Toaster theme="dark" position="bottom-right" rich-colors />
   </v-app>
 </template>
-
-<script>
-  require('@/assets/styles/trackarr.css')
-  export default {
-    name: 'App',
-    data: () => ({
-
-    })
-  };
-</script>

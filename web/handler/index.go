@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/sollie/trackarr/config"
 
@@ -14,6 +15,8 @@ func Index(c *echo.Context) error {
 	return c.Render(http.StatusOK, "index.html", map[string]any{
 		"apikey":  config.Config.Server.ApiKey,
 		"baseurl": config.Config.Server.BaseURL,
-		"version": config.Build.Version,
+		// base url without trailing slash, for building asset urls
+		"assetbase": strings.TrimRight(config.Config.Server.BaseURL, "/"),
+		"version":   config.Build.Version,
 	})
 }

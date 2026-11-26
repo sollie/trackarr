@@ -1,303 +1,68 @@
-<template>
-    <v-container fluid>
-        <v-row>
-            <v-col class="pb-0" lg="5" md="5" sm="5" cols="5">
-                <h1 class="pt-5 headline font-weight-light">Pushed Releases</h1>
-            </v-col>
-            <v-col class="text-right pb-0 ml-auto" lg="6" md="6" sm="7" cols="7">
-                <v-text-field class="d-inline-flex" v-model="pushedReleasesSearch" append-icon="mdi-magnify" label="Search" single-line hide-details>
-                </v-text-field>
-            </v-col>
-        </v-row>
-        <v-row>
-            <v-col>
-                <v-divider class="mb-2"></v-divider>
-                <v-data-table sort-by="age" sort-desc :search="pushedReleasesSearch" disable-sorting
-                    :loading="releasesLoading" calculate-widths fixed-header :headers="headersAll" :items="allReleases"
-                    :items-per-page="5" class="elevation-1">
-                    <template v-if="$vuetify.breakpoint.xs" v-slot:item.release="{ item }">
-                        <div class="pl-12">
-                            {{ item.release }}
-                        </div>
-                    </template>
-                    <template v-slot:item.age="{ item }">
-                        {{ item.age | moment("from", "now")}}
-                    </template>
-                    <template v-slot:item.pvr="{ item }">
-                        {{ item.pvr | capitalize }}
-                    </template>
-                    <template v-slot:body.append>
-                        <tr>
-                            <td class="d-none d-sm-table-cell"></td>
-                            <td class="d-none d-sm-table-cell"></td>
-                            <td
-                                :class="{'mt-6 mb-6':$vuetify.breakpoint.xs,'pt-5':$vuetify.breakpoint.smAndUp,'v-data-table__mobile-row':$vuetify.breakpoint.xs,'text-start':!$vuetify.breakpoint.xs}">
-                                <v-row>
-                                    <v-col class="pt-0 pb-0">
-                                        <v-select label="Trackers" prepend-icon="mdi-filter" dense multiple clearable
-                                            :items="getTrackers()" v-model="filters.trackersAll">
-                                        </v-select>
-                                    </v-col>
-                                </v-row>
+<script setup>
+import { onMounted, ref } from 'vue'
+import { api } from '@/lib/api'
+import { capitalize, fromNow } from '@/lib/format'
+import { onEvent, useTopic } from '@/lib/socket'
 
-                            </td>
-                            <td
-                                :class="{'mt-6 mb-6':$vuetify.breakpoint.xs,'pt-5':$vuetify.breakpoint.smAndUp,'v-data-table__mobile-row':$vuetify.breakpoint.xs,'text-start':!$vuetify.breakpoint.xs}">
-                                <v-row>
-                                    <v-col class="pt-0 pb-0">
-                                        <v-select label="PVR" prepend-icon="mdi-filter" dense multiple clearable
-                                            :items="getPVR()" v-model="filters.PVRAll">
-                                        </v-select>
-                                    </v-col>
-                                </v-row>
-                            </td>
-                        </tr>
-                    </template>
-                </v-data-table>
-            </v-col>
-        </v-row>
-        <v-row>
-            <v-col class="pb-0" lg="5" md="5" sm="5" cols="5">
-                <h1 class="pt-5 headline font-weight-light">Approved Releases</h1>
-            </v-col>
-            <v-col class="text-right pb-0 ml-auto" lg="6" md="6" sm="7" cols="7">
-                <v-text-field class="d-inline-flex" v-model="approvedReleasesSearch" append-icon="mdi-magnify" label="Search" single-line hide-details>
-                </v-text-field>
-            </v-col>
-        </v-row>
-        <v-row>
-            <v-col>
-                <v-divider class="mb-2"></v-divider>
-                <v-data-table sort-by="age" sort-desc :search="approvedReleasesSearch" disable-sorting
-                    :loading="releasesLoading" calculate-widths fixed-header :headers="headersApproved" :items="approvedReleases"
-                    :items-per-page="5" class="elevation-1">
-                    <template v-slot:item.age="{ item }">
-                        {{ item.age | moment("from", "now")}}
-                    </template>
-                    <template v-slot:item.pvr="{ item }">
-                        {{ item.pvr | capitalize }}
-                    </template>
-                    <template v-if="$vuetify.breakpoint.xs" v-slot:item.release="{ item }">
-                        <div class="pl-12">
-                            {{ item.release }}
-                        </div>
-                    </template>
-                    <template v-slot:body.append>
-                        <tr>
-                            <td class="d-none d-sm-table-cell"></td>
-                            <td class="d-none d-sm-table-cell"></td>
-                            <td
-                                :class="{'mt-6 mb-6':$vuetify.breakpoint.xs,'pt-5':$vuetify.breakpoint.smAndUp,'v-data-table__mobile-row':$vuetify.breakpoint.xs,'text-start':!$vuetify.breakpoint.xs}">
-                                <v-row>
-                                    <v-col class="pt-0 pb-0">
-                                        <v-select label="Trackers" prepend-icon="mdi-filter" dense multiple clearable
-                                            :items="getTrackers(approved=true)" v-model="filters.trackersApproved">
-                                        </v-select>
-                                    </v-col>
-                                </v-row>
+const headers = [
+  { title: 'Age', key: 'age', sortable: false },
+  { title: 'Release', key: 'release', sortable: false },
+  { title: 'Tracker', key: 'tracker', sortable: false },
+  { title: 'PVR', key: 'pvr', sortable: false },
+]
 
-                            </td>
-                            <td
-                                :class="{'mt-6 mb-6':$vuetify.breakpoint.xs,'pt-5':$vuetify.breakpoint.smAndUp,'v-data-table__mobile-row':$vuetify.breakpoint.xs,'text-start':!$vuetify.breakpoint.xs}">
-                                <v-row>
-                                    <v-col class="pt-0 pb-0">
-                                        <v-select label="PVR" prepend-icon="mdi-filter" dense multiple clearable
-                                            :items="getPVR(approved=true)" v-model="filters.PVRApproved">
-                                        </v-select>
-                                    </v-col>
-                                </v-row>
-                            </td>
-                        </tr>
-                    </template>
-                </v-data-table>
-            </v-col>
-        </v-row>
-    </v-container>
+const releases = ref([])
+const loading = ref(true)
+const sections = [
+  { title: 'Pushed Releases', approvedOnly: false },
+  { title: 'Approved Releases', approvedOnly: true },
+].map((section) => ({
+  ...section,
+  search: ref(''),
+  trackers: ref([]),
+  pvrs: ref([]),
+}))
 
-</template>
+const toRelease = (r) => ({ age: r.CreatedAt, release: r.Name, pvr: r.PvrName, tracker: r.TrackerName, approved: r.Approved })
 
-<script>
-    export default {
-        name: 'home',
-        data() {
-            return {
-                allReleases: [],
-                approvedReleases: [],
-                pushedReleasesSearch: '',
-                releasesLoading: true,
-                approvedReleasesSearch: '',
-                filters: {
-                    trackersAll: [],
-                    PVRAll: [],
-                    trackersApproved: [],
-                    PVRApproved: []
-                }
-            }
-        },
-        methods: {
-            fetchReleases: function () {
-                this.$axios.get('/releases', {
-                    params: {
-                        apikey: this.CORE_API_KEY
-                    }
-                }).then(
-                    response => {
-                        for (let i = 0; i < response.data.length; i++) {
-                            this.allReleases.push({
-                                age: response.data[i].CreatedAt,
-                                release: response.data[i].Name,
-                                pvr: response.data[i].PvrName,
-                                tracker: response.data[i].TrackerName
-                            });
+const rowsFor = (section) => releases.value.filter((r) => !section.approvedOnly || r.approved)
 
-                            if (response.data[i].Approved) {
-                                this.approvedReleases.push({
-                                    age: response.data[i].CreatedAt,
-                                    release: response.data[i].Name,
-                                    pvr: response.data[i].PvrName,
-                                    tracker: response.data[i].TrackerName
-                                })
-                            }
-                        }
-                        this.releasesLoading = false;
-                    })
-            },
-            getTrackers: function (approved = false) {
-                if (!approved) {
-                    return [...new Set(this.allReleases.map(item => item.tracker))]
-                }
-                return [...new Set(this.approvedReleases.map(item => item.tracker))]
-            },
-            getPVR: function (approved = false) {
-                if (!approved) {
-                    return [...new Set(this.allReleases.map(item => item.pvr))]
-                }
-                return [...new Set(this.approvedReleases.map(item => item.pvr))]
+const unique = (rows, key) => [...new Set(rows.map((r) => r[key]))]
 
-            }
-        },
-        beforeDestroy: function () {
-            // unsubscribe from releases topic
-            if (this.$socket.readyState === WebSocket.OPEN) {
-                this.$socket.sendObj({
-                    type: 'unsubscribe',
-                    data: 'releases'
-                });
-            }
-        },
-        mounted: function () {
-            // retrieve releases
-            this.fetchReleases();
+function visible(section) {
+  return rowsFor(section)
+    .filter((r) => section.trackers.value.length === 0 || section.trackers.value.includes(r.tracker))
+    .filter((r) => section.pvrs.value.length === 0 || section.pvrs.value.includes(r.pvr))
+    .sort((a, b) => new Date(b.age) - new Date(a.age))
+}
 
-            // subscribe to releases topic when socket is already open
-            if (this.$socket.readyState === WebSocket.OPEN) {
-                this.$socket.sendObj({
-                    type: 'subscribe',
-                    data: 'releases'
-                });
-            } else {
-                // subscribe to releases topic when socket is connected
-                this.$options.sockets.onopen = () => {
-                    this.$socket.sendObj({
-                        type: 'subscribe',
-                        data: 'releases'
-                    });
-                };
-            }
+useTopic('releases')
+onEvent('release', (data) => releases.value.push(toRelease(data)))
 
-            // set message handler
-            this.$options.sockets.onmessage = (message) => {
-                // parse message
-                let event = JSON.parse(message.data);
-
-                // ignore irrelevant messages
-                if (!event.type || event.type !== 'release')
-                    return;
-
-                // handle release message
-                this.allReleases.push({
-                    age: event.data.CreatedAt,
-                    release: event.data.Name,
-                    pvr: event.data.PvrName,
-                    tracker: event.data.TrackerName
-                });
-
-                if (event.data.Approved) {
-                    this.approvedReleases.push({
-                        age: event.data.CreatedAt,
-                        release: event.data.Name,
-                        pvr: event.data.PvrName,
-                        tracker: event.data.TrackerName
-                    });
-                }
-            }
-        },
-        computed: {
-            headersAll() {
-                return [{
-                        text: 'Age',
-                        value: 'age',
-                    },
-                    {
-                        text: 'Release',
-                        value: 'release'
-                    },
-                    {
-                        text: 'Tracker',
-                        value: 'tracker',
-                        filter: (value) => {
-                            if (this.filters.trackersAll.length === 0) {
-                                return true;
-                            }
-                            return this.filters.trackersAll.includes(value);
-                        },
-                    },
-                    {
-                        text: 'PVR',
-                        value: 'pvr',
-                        filter: (value) => {
-                            if (this.filters.PVRAll.length === 0) {
-                                return true;
-                            }
-                            return this.filters.PVRAll.includes(value.toLowerCase());
-                        },
-                    }
-                ]
-            },
-            headersApproved() {
-                return [{
-                        text: 'Age',
-                        value: 'age',
-                    },
-                    {
-                        text: 'Release',
-                        value: 'release'
-                    },
-                    {
-                        text: 'Tracker',
-                        value: 'tracker',
-                        filter: (value) => {
-                            if (this.filters.trackersApproved.length === 0) {
-                                return true;
-                            }
-                            return this.filters.trackersApproved.includes(value);
-                        },
-                    },
-                    {
-                        text: 'PVR',
-                        value: 'pvr',
-                        filter: (value) => {
-                            if (this.filters.PVRApproved.length === 0) {
-                                return true;
-                            }
-                            return this.filters.PVRApproved.includes(value.toLowerCase());
-                        },
-                    }
-                ]
-            }
-
-
-        }
-
-    };
+onMounted(async () => {
+  const { data } = await api.get('/releases')
+  releases.value.push(...data.map(toRelease))
+  loading.value = false
+})
 </script>
+
+<template>
+  <v-container fluid>
+    <template v-for="section in sections" :key="section.title">
+      <v-row align="center">
+        <v-col cols="12" md="3">
+          <h1 class="text-h5 font-weight-light">{{ section.title }}</h1>
+        </v-col>
+        <v-col cols="12" md="9" class="d-flex flex-wrap ga-4">
+          <v-select v-model="section.trackers.value" label="Trackers" prepend-inner-icon="mdi-filter" :items="unique(rowsFor(section), 'tracker')" density="compact" multiple clearable hide-details />
+          <v-select v-model="section.pvrs.value" label="PVR" prepend-inner-icon="mdi-filter" :items="unique(rowsFor(section), 'pvr')" density="compact" multiple clearable hide-details />
+          <v-text-field v-model="section.search.value" label="Search" append-inner-icon="mdi-magnify" density="compact" single-line hide-details />
+        </v-col>
+      </v-row>
+      <v-data-table class="mb-6" :search="section.search.value" :loading="loading" fixed-header :headers="headers" :items="visible(section)" :items-per-page="5">
+        <template #item.age="{ item }">{{ fromNow(item.age) }}</template>
+        <template #item.pvr="{ item }">{{ capitalize(item.pvr) }}</template>
+      </v-data-table>
+    </template>
+  </v-container>
+</template>

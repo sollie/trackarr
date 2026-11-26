@@ -1,33 +1,11 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
-const Home  = () => import('../views/Home.vue')
-const Logs = () => import('../views/Logs.vue')
-const Status = () => import('../views/Status.vue')
+import { createRouter, createWebHistory } from 'vue-router'
+import { config } from '@/lib/config'
 
-Vue.use(VueRouter)
-
-const routes = [
-  {
-    path: '/',
-    name: 'home',
-    component: Home
-  },
-  {
-    path: '/logs',
-    name: 'logs',
-    component: Logs
-  },
-  {
-    path: '/status',
-    name: 'status',
-    component: Status
-  }
-]
-
-const router = new VueRouter({
-  mode: 'history',
-  base: window.baseurl,
-  routes
+export default createRouter({
+  history: createWebHistory(config.baseUrl),
+  routes: [
+    { path: '/', name: 'home', component: () => import('../views/Home.vue') },
+    { path: '/logs', name: 'logs', component: () => import('../views/Logs.vue') },
+    { path: '/status', name: 'status', component: () => import('../views/Status.vue') },
+  ],
 })
-
-export default router

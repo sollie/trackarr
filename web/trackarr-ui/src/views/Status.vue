@@ -1,197 +1,75 @@
-<template>
-    <div>
-        <v-container fluid>
-            <v-row align="center">
-                <v-col class="pb-0" lg="4" md="4" sm="4" cols="4">
-                    <h1 class="pt-5 headline font-weight-light">Tracker Status</h1>
-                </v-col>
-                <v-col class="text-right pb-0 ml-auto" lg="7" md="7" sm="8" cols="8">
-                    <v-text-field class="d-inline-flex" v-model="trackerSearch" append-icon="mdi-magnify" label="Search"
-                                  single-line hide-details>
-                    </v-text-field>
-                </v-col>
-            </v-row>
-            <v-row>
-                <v-col>
-                    <v-divider class="mb-2"></v-divider>
-                    <v-data-table :search="trackerSearch" disable-sorting calculate-widths :headers="headers"
-                                  :items="filteredTrackers()" :items-per-page="15 " class="elevation-1">
+<script setup>
+import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { toast } from 'vue-sonner'
+import StatusIndicator from '@/components/StatusIndicator.vue'
+import { api } from '@/lib/api'
+import { config } from '@/lib/config'
+import { capitalize, fromNow } from '@/lib/format'
 
-                        <template v-slot:item.status="{ item }">
-                            <div>
-                                <status-indicator v-if="item.status == 'online'" class="mr-3" status="positive" pulse/>
-                                <status-indicator v-if="item.status == 'offline'" class="mr-3" status="negative"
-                                                  pulse/>
-                                <span v-if="item.status === 'online'">
-                                    <span v-if="item.last_joined !== null">
-                                        {{ item.status | capitalize }} <i>(joined {{ item.last_joined | moment("from", "now") }})</i>
-                                    </span>
-                                    <span v-else>
-                                        {{ item.status | capitalize }}
-                                    </span>
-                                </span>
-                                <span v-else>
-                                    {{ item.status | capitalize }}
-                                </span>
-                            </div>
+const headers = [
+  { title: 'Tracker', key: 'tracker', sortable: false },
+  { title: 'Status', key: 'status', sortable: false },
+  { title: 'Last Announced', key: 'last_announced', sortable: false },
+]
+const statusOptions = [
+  { title: 'Online', value: 'online' },
+  { title: 'Offline', value: 'offline' },
+]
 
-                        </template>
-                        <template v-slot:item.last_announced="{ item }">
-                            <div>
-                                <span v-if="item.last_announced !== null">
-                                    {{ item.last_announced | moment("from", "now") | capitalize }}
-                                </span>
-                                <span v-else>
-                                    Never
-                                </span>
-                            </div>
-                        </template>
-                        <template v-slot:body.append>
-                            <tr>
-                                <td class="d-none d-sm-table-cell"></td>
-                                <td
-                                        :class="{'mt-6 mb-6':$vuetify.breakpoint.xs,'pt-5':$vuetify.breakpoint.smAndUp,'v-data-table__mobile-row':$vuetify.breakpoint.xs,'text-start':!$vuetify.breakpoint.xs}">
-                                    <v-row>
-                                        <v-col class="pt-0 pb-0">
-                                            <v-select label="Tracker Status" prepend-icon="mdi-filter" dense clearable
-                                                      :items="trackerStatus" v-model="filterTrackerStatus">
-                                            </v-select>
-                                        </v-col>
-                                    </v-row>
+const trackers = ref([])
+const search = ref('')
+const statusFilter = ref(null)
 
-                                </td>
-                            </tr>
-                        </template>
-                    </v-data-table>
-                </v-col>
-            </v-row>
-        </v-container>
-        <v-footer absolute dark padless>
-            <v-col class="text-right" cols="12">
-                <v-btn v-on:click="checkForUpdate()" color="secondary" class="ma-2">Check For Update</v-btn>
-                <label><strong>Trackarr {{currentVersion}}</strong></label>
+const filtered = computed(() => trackers.value.filter((item) => !statusFilter.value || item.status === statusFilter.value))
 
-            </v-col>
+async function fetchStatuses() {
+  const { data } = await api.get('/irc/status')
+  trackers.value = Object.entries(data).map(([tracker, value]) => ({
+    tracker,
+    status: value.connected === true ? 'online' : 'offline',
+    last_joined: value.last_joined || null,
+    last_announced: value.last_announced || null,
+  }))
+}
 
+async function checkForUpdate() {
+  const { data } = await api.get('/update/status')
+  toast(data.update_available ? `Newer version available: ${data.latest_version}` : "You're already on the latest version!", {
+    position: 'top-right',
+  })
+}
 
-        </v-footer>
-    </div>
-
-</template>
-
-
-<script>
-    import {StatusIndicator} from 'vue-status-indicator';
-
-    export default {
-        name: 'status',
-        components: {
-            StatusIndicator,
-        },
-        data() {
-            return {
-                trackers: [],
-                trackerSearch: '',
-                filterTrackerStatus: '',
-                trackerStatus: [{
-                    text: "Online",
-                    value: "online",
-                },
-                    {
-                        text: "Offline",
-                        value: "offline",
-                    }
-
-                ],
-                currentVersion: this.CORE_APP_VERSION
-            }
-        },
-        computed: {
-            headers() {
-                return [{
-                    text: 'Tracker',
-                    value: 'tracker',
-                },
-                    {
-                        text: 'Status',
-                        value: 'status',
-                        filter: (value) => {
-                            if (!this.filterTrackerStatus) {
-                                return true;
-                            }
-                            return this.filterTrackerStatus === value;
-                        },
-                    },
-                    {
-                        text: 'Last Announced',
-                        value: 'last_announced'
-                    }
-                ]
-            }
-        },
-        methods: {
-            filteredTrackers: function () {
-                return this.trackers.filter(item => {
-                    if (this.filterTrackerStatus) {
-                        return item.status === this.filterTrackerStatus;
-                    }
-                    return true;
-                })
-
-            },
-            fetchTrackerStatuses: function () {
-                this.$axios.get('/irc/status', {
-                    params: {
-                        apikey: this.CORE_API_KEY
-                    }
-                }).then(
-                    response => {
-                        for (const [key, value] of Object.entries(response.data)) {
-                            let index = this.trackers.map(item => item.tracker).indexOf(key);
-                            if (index === -1) {
-                                this.trackers.push({
-                                    tracker: key,
-                                    status: value.connected === true ? 'online' : 'offline',
-                                    last_joined: value.last_joined !== '' ? value.last_joined : null,
-                                    last_announced: value.last_announced !== '' ? value.last_announced : null
-                                })
-                            } else {
-                                this.trackers[index].status = value.connected === true ? 'online' : 'offline';
-                                this.trackers[index].last_joined = value.last_joined !== '' ? value.last_joined : null;
-                                this.trackers[index].last_announced = value.last_announced !== '' ? value.last_announced : null
-                            }
-                        }
-                    })
-            },
-            checkForUpdate: function () {
-                this.$axios.get('/update/status', {
-                    params: {
-                        apikey: this.CORE_API_KEY
-                    }
-                }).then(response => {
-                    if (response.data.update_available) {
-                        this.$toastr.Add({
-                            msg: "Newer version available: " + response.data.latest_version,
-                            position: 'toast-top-right'
-                        })
-                    } else {
-                        this.$toastr.Add({
-                            msg: "You're already on the latest version!",
-                            position: 'toast-top-right'
-                        })
-                    }
-                })
-            }
-        },
-        beforeDestroy: function () {
-            clearInterval(this.interval)
-        },
-        mounted: function () {
-            // retrieve releases
-            this.fetchTrackerStatuses();
-            this.interval = setInterval(() => {
-                this.fetchTrackerStatuses()
-            }, 60000);
-        }
-    };
+onMounted(() => {
+  fetchStatuses()
+  const interval = setInterval(fetchStatuses, 60000)
+  onScopeDispose(() => clearInterval(interval))
+})
 </script>
+
+<template>
+  <v-container fluid>
+    <v-row align="center">
+      <v-col cols="12" sm="4">
+        <h1 class="text-h5 font-weight-light">Tracker Status</h1>
+      </v-col>
+      <v-col cols="12" sm="8" class="d-flex ga-4">
+        <v-select v-model="statusFilter" label="Tracker Status" prepend-inner-icon="mdi-filter" :items="statusOptions" density="compact" clearable hide-details />
+        <v-text-field v-model="search" label="Search" append-inner-icon="mdi-magnify" density="compact" single-line hide-details />
+      </v-col>
+    </v-row>
+    <v-data-table :search="search" :headers="headers" :items="filtered" :items-per-page="15">
+      <template #item.status="{ item }">
+        <status-indicator v-if="item.status" :online="item.status === 'online'" />
+        {{ capitalize(item.status) }}
+        <i v-if="item.status === 'online' && item.last_joined">(joined {{ fromNow(item.last_joined) }})</i>
+      </template>
+      <template #item.last_announced="{ item }">
+        {{ item.last_announced ? capitalize(fromNow(item.last_announced)) : 'Never' }}
+      </template>
+    </v-data-table>
+    <v-footer class="justify-end ga-4">
+      <v-btn color="secondary" @click="checkForUpdate">Check For Update</v-btn>
+      <strong>Trackarr {{ config.version }}</strong>
+    </v-footer>
+  </v-container>
+</template>

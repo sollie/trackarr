@@ -20,7 +20,7 @@ WEB_UI_PATH    := ${WEB_DIR}/trackarr-ui
 WEB_UI_MODULES := ${WEB_UI_PATH}/node_modules
 WEB_UI_DIST    := ${WEB_UI_PATH}/${DIST_PATH}
 WEB_GO_FILES   := $(shell find ${WEB_DIR} -type f -and -name '*.go' -and -not -name ${RICE_FILE} -print)
-WEB_UI_FILES   := $(shell find ${WEB_UI_PATH}/src ${WEB_UI_PATH}/public -type f -print)
+WEB_UI_FILES   := $(shell find ${WEB_UI_PATH}/src ${WEB_UI_PATH}/public -type f -print) ${WEB_UI_PATH}/index.html
 
 # Deps
 .PHONY: check_rice
@@ -89,7 +89,7 @@ ${WEB_RICE_FILE}: ${WEB_GO_FILES} ${WEB_UI_DIST} go.sum
 
 # Web files build
 ${WEB_UI_DIST}: SKIP_WEB=false
-${WEB_UI_DIST}: ${WEB_UI_FILES} ${WEB_UI_PATH}/vue.config.js ${WEB_UI_PATH}/yarn.lock
+${WEB_UI_DIST}: ${WEB_UI_FILES} ${WEB_UI_PATH}/vite.config.js ${WEB_UI_PATH}/yarn.lock
 	@[ "${SKIP_WEB}" = "true" ] || \
 	(echo "Building Web UI..." && \
 	cd ${WEB_UI_PATH} && yarn build)
