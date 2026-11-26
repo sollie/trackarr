@@ -1,129 +1,113 @@
 package web
 
 import (
-	"strings"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
 )
 
-var testURL = "http://proof.ovh.net/files/1Mio.dat"
+func TestDoBasicAndUserAgent(t *testing.T) {
+	var ua string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ua = r.Header.Get("User-Agent")
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
 
-func TestGetResponse(t *testing.T) {
-	type args struct {
-		method     HTTPMethod
-		requestUrl string
-		timeout    int
-		v          []interface{}
+	headers := req.Header{"X-Test": "1"}
+	body, err := BodyString(Request{Method: GET, URL: srv.URL, Headers: headers})
+	if err != nil || body != "ok" {
+		t.Fatalf("body = %q, err = %v", body, err)
 	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "basicGET",
-			args: args{
-				method:     GET,
-				requestUrl: testURL,
-				timeout:    0,
-			},
-			wantErr: false,
-		},
-		{
-			name: "retryGET",
-			args: args{
-				method:     GET,
-				requestUrl: testURL,
-				timeout:    0,
-				v: []interface{}{
-					&Retry{
-						MaxAttempts: 2,
-						Backoff: backoff.Backoff{
-							Jitter: true,
-						},
-					},
-				},
-			},
-			wantErr: false,
-		},
+	if ua == "" {
+		t.Error("user agent not set")
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetResponse(tt.args.method, tt.args.requestUrl, tt.args.timeout, tt.args.v...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetResponse() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if got.Response().StatusCode != 200 {
-				t.Errorf("GetResponse() StatusCode = %v, wanted %v", got.Response().StatusCode, 200)
-			}
-		})
+	if _, ok := headers["User-Agent"]; ok {
+		t.Error("caller headers were mutated")
 	}
 }
 
-func TestCookieLeak(t *testing.T) {
-	// set cookies in first request
-	body, err := GetBodyString(GET, "https://httpbin.org/cookies/set/test/leaked", 5)
-	if err != nil {
-		t.Errorf("GetBodyString() error = %v", err)
-		return
-	} else if !strings.Contains(body, "leaked") {
-		t.Errorf("GetBodyString() unexpected set-cookie response = %v", body)
-		return
-	}
+func TestDoRetriesStatusCode(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) < 3 {
+			w.WriteHeader(http.StatusGatewayTimeout)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
 
-	// get cookies from subsequent request (cookies set above should not be there)
-	body, err = GetBodyString(GET, "https://postman-echo.com/cookies", 5)
+	resp, err := Do(Request{Method: GET, URL: srv.URL, Retry: &Retry{
+		MaxAttempts:          5,
+		RetryableStatusCodes: []int{504},
+		Backoff:              backoff.Backoff{Min: time.Millisecond, Max: time.Millisecond},
+	}})
 	if err != nil {
-		t.Errorf("GetBodyString() error = %v", err)
-		return
-	} else if strings.Contains(body, "leaked") {
-		t.Errorf("GetBodyString() cookies leaked from initial request = %v", body)
-		return
+		t.Fatal(err)
 	}
+	defer DrainAndClose(resp.Response().Body)
 
-	// get cookies from first request (cookies set initially should be there)
-	body, err = GetBodyString(GET, "https://httpbin.org/cookies", 5)
-	if err != nil {
-		t.Errorf("GetBodyString() error = %v", err)
-		return
-	} else if !strings.Contains(body, "leaked") {
-		t.Errorf("GetBodyString() cookies not retained from initial set request = %v", body)
-		return
+	if resp.Response().StatusCode != 200 || calls != 3 {
+		t.Errorf("status = %d, calls = %d", resp.Response().StatusCode, calls)
 	}
 }
 
-//func TestNoRedirect(t *testing.T) {
-//	// test noredirect
-//	body, err := GetBodyString(GET, "https://httpbin.org/redirect-to?url=https%3A%2F%2Fwww.google.com", 5,
-//		WithNoRedirect)
-//	if err != nil {
-//		t.Errorf("GetBodyString() error = %v", err)
-//		return
-//	} else if strings.Contains(body, "Google") {
-//		t.Errorf("GetBodyString() unexpected no-redirect response = %v", body)
-//		return
-//	}
-//
-//	// test redirect
-//	body, err = GetBodyString(GET, "https://httpbin.org/redirect-to?url=https%3A%2F%2Fwww.google.com", 5)
-//	if err != nil {
-//		t.Errorf("GetBodyString() error = %v", err)
-//		return
-//	} else if !strings.Contains(body, "Google") {
-//		t.Errorf("GetBodyString() unexpected redirect response = %v", body)
-//		return
-//	}
-//}
+func TestDoRetriesUnexpectedContentType(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) < 2 {
+			w.Header().Set("Content-Type", "text/html")
+		} else {
+			w.Header().Set("Content-Type", "application/JSON; charset=utf-8")
+		}
+	}))
+	defer srv.Close()
 
-func benchmarkGetBodyBytes(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		if _, err := GetBodyBytes(GET, testURL, 0); err != nil {
-			b.Error(err)
+	resp, err := Do(Request{Method: GET, URL: srv.URL, Retry: &Retry{
+		MaxAttempts:         5,
+		ExpectedContentType: "application/json",
+		Backoff:             backoff.Backoff{Min: time.Millisecond, Max: time.Millisecond},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	DrainAndClose(resp.Response().Body)
+
+	if calls != 2 {
+		t.Errorf("calls = %d", calls)
+	}
+}
+
+func TestDoNoRedirect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/final", http.StatusFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	for noRedirect, want := range map[bool]int{true: 302, false: 200} {
+		resp, err := Do(Request{Method: GET, URL: srv.URL, NoRedirect: noRedirect})
+		if err != nil {
+			t.Fatal(err)
+		}
+		DrainAndClose(resp.Response().Body)
+		if resp.Response().StatusCode != want {
+			t.Errorf("NoRedirect=%v: status = %d, want %d", noRedirect, resp.Response().StatusCode, want)
 		}
 	}
 }
 
-func BenchmarkGetBodyBytes(b *testing.B) { benchmarkGetBodyBytes(b) }
+func TestDoRejectsUnsupportedMethod(t *testing.T) {
+	if _, err := Do(Request{Method: HTTPMethod(99), URL: "http://localhost"}); err == nil {
+		t.Fatal("expected error")
+	}
+}

@@ -120,8 +120,8 @@ func (httpPusher) PushRelease(pvr *config.PvrConfig, pvrRequest pushRequest) (*P
 		"X-Api-Key": pvr.ApiKey,
 	}
 
-	resp, err := web.GetResponse(web.POST, requestUrl, defaults.GetOrDefaultInt(&pvr.Timeout, 30),
-		req.BodyJSON(&pvrRequest), &web.Retry{
+	resp, err := web.Do(web.Request{Method: web.POST, URL: requestUrl,
+		Timeout: defaults.GetOrDefaultInt(&pvr.Timeout, 30), Body: req.BodyJSON(&pvrRequest), Headers: headers, Retry: &web.Retry{
 			MaxAttempts: 6,
 			RetryableStatusCodes: []int{
 				504,
@@ -131,7 +131,7 @@ func (httpPusher) PushRelease(pvr *config.PvrConfig, pvrRequest pushRequest) (*P
 				Min:    500 * time.Millisecond,
 				Max:    10 * time.Second,
 			},
-		}, headers)
+		}})
 	if err != nil {
 		return nil, err
 	}

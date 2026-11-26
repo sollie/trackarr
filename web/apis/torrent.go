@@ -115,7 +115,7 @@ func Torrent(c echo.Context) error {
 	}
 
 	// retrieve torrent stream
-	resp, err := webutils.GetResponse(webutils.GET, url, 30, &webutils.Retry{
+	resp, err := webutils.Do(webutils.Request{Method: webutils.GET, URL: url, Timeout: 30, Headers: headers, Retry: &webutils.Retry{
 		MaxAttempts: 5,
 		RetryableStatusCodes: []int{
 			504,
@@ -125,7 +125,7 @@ func Torrent(c echo.Context) error {
 			Jitter: true,
 			Min:    500 * time.Millisecond,
 			Max:    3 * time.Second,
-		}}, headers)
+		}}})
 	if err != nil {
 		log.WithError(err).Errorf("Failed retrieving torrent stream: %s", url)
 		return c.JSON(http.StatusInternalServerError, &ErrorResponse{

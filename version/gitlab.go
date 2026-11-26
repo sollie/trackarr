@@ -26,7 +26,7 @@ func gitlabReleases(apiUrl string, privateToken string) ([]GitlabRelease, error)
 	}
 
 	// retrieve latest releases
-	resp, err := web.GetResponse(web.GET, apiUrl, 15, headers)
+	resp, err := web.Do(web.Request{Method: web.GET, URL: apiUrl, Timeout: 15, Headers: headers})
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid gitlab releases response from: %q", apiUrl)
 	}

@@ -114,7 +114,7 @@ func (t *Mtv) login() error {
 	t.loginAttempts++
 
 	// send request
-	resp, err := web.GetResponse(web.POST, mtvLoginUrl, mtvTimeout, t.loginBody, web.WithNoRedirect)
+	resp, err := web.Do(web.Request{Method: web.POST, URL: mtvLoginUrl, Timeout: mtvTimeout, Body: t.loginBody, NoRedirect: true})
 	if err != nil {
 		return errors.Wrapf(err, "failed logging into %q", t.tracker.Name)
 	}
@@ -203,17 +203,17 @@ func (t *Mtv) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	}
 
 	// send request
-	mtvReleaseAsBytes, err := web.GetBodyBytes(web.GET, mtvTorrentUrl, ptpTimeout, req.QueryParam{
+	mtvReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: mtvTorrentUrl, Timeout: ptpTimeout, Query: req.QueryParam{
 		"action": "torrent",
 		"id":     torrentId,
-	}, &web.Retry{
+	}, Limiter: t.rl, Retry: &web.Retry{
 		MaxAttempts:         5,
 		ExpectedContentType: "application/json",
 		Backoff: backoff.Backoff{
 			Jitter: true,
 			Min:    2 * time.Second,
 			Max:    5 * time.Second,
-		}}, t.rl)
+		}}})
 	if err != nil {
 		t.checkResponseBytes(mtvReleaseAsBytes)
 		return nil, errors.Wrapf(err, "failed retrieving torrent info bytes for: %s", torrent.TorrentId)

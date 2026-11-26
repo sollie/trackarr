@@ -4,13 +4,13 @@ import (
 	"time"
 )
 
-//Contains all the info about the torrent file
+// Contains all the info about the torrent file
 type TorrentFile struct {
 	Length int64
 	Path   string
 }
 
-//Contains all the meta-info data from the original torrent file
+// Contains all the meta-info data from the original torrent file
 type TorrentInfo struct {
 	Name        string
 	Length      int64
@@ -19,7 +19,7 @@ type TorrentInfo struct {
 	Files []*TorrentFile
 }
 
-//Contains all the meta-file data from the original torrent file
+// Contains all the meta-file data from the original torrent file
 type TorrentMeta struct {
 	AnnounceList []string
 	CreationDate time.Time

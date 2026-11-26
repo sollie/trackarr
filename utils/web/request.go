@@ -37,11 +37,21 @@ const (
 	GET HTTPMethod = iota + 1
 	// POST - Use POST HTTP method
 	POST
-	// PUT - Use PUT HTTP method
-	PUT
-	// DELETE - Use DELETE HTTP method
-	DELETE
 )
+
+// Request describes a single outgoing http request. Only Method and URL are mandatory.
+type Request struct {
+	Method  HTTPMethod
+	URL     string
+	Timeout int // seconds, 0 for none
+	Headers req.Header
+	Query   req.QueryParam
+	// Body is any body accepted by req (req.BodyJSON, req.Param, string, []byte, ...)
+	Body       interface{}
+	Retry      *Retry
+	Limiter    *RateLimiter
+	NoRedirect bool
+}
 
 /* Private */
 
@@ -49,119 +59,83 @@ func init() {
 	// dont json escape html
 	req.SetJSONEscapeHTML(false)
 
-	// use timeout from getresponse
+	// use timeout from Do
 	httpClient.Timeout = time.Duration(0)
+}
+
+func userAgent() string {
+	if config.Build != nil {
+		return "trackarr/" + config.Build.Version
+	}
+
+	return "trackarr/v1.0.0"
 }
 
 /* Public */
 
-func GetResponse(method HTTPMethod, requestUrl string, timeout int, v ...interface{}) (*req.Resp, error) {
-	// prepare request
-	inputs := make([]interface{}, 0)
+// Do sends the request, honouring its rate limiter and retry policy. The caller's Headers are never modified.
+func Do(r Request) (*req.Resp, error) {
+	if r.Method != GET && r.Method != POST {
+		log.Error("Request method has not been implemented")
+		return nil, errors.New("request method has not been implemented")
+	}
 
 	// prepare client
 	client := httpClient
-	if timeout > 0 {
-		client.Timeout = time.Duration(timeout) * time.Second
+	if r.Timeout > 0 {
+		client.Timeout = time.Duration(r.Timeout) * time.Second
+	}
+	if r.NoRedirect {
+		noRedirect(&client)
 	}
 
 	// prepare request inputs
-	setUserAgent := false
-	var rl *RateLimiter = nil
+	headers := req.Header{}
+	for k, v := range r.Headers {
+		headers[k] = v
+	}
+	headers["User-Agent"] = userAgent()
+
+	inputs := []interface{}{&client, headers}
+	if r.Query != nil {
+		inputs = append(inputs, r.Query)
+	}
+	if r.Body != nil {
+		inputs = append(inputs, r.Body)
+	}
+
 	var retry Retry
-
-	for _, vv := range v {
-		switch vT := vv.(type) {
-		case *RateLimiter:
-			rl = vT
-		case RateLimiter:
-			rl = &vT
-		case *Retry:
-			retry = *vT
-		case Retry:
-			retry = vT
-		case req.Header:
-			if config.Build == nil || vT == nil {
-				continue
-			}
-
-			vT["User-Agent"] = "trackarr/" + config.Build.Version
-			inputs = append(inputs, vT)
-			setUserAgent = true
-		case *req.Header:
-			if config.Build == nil || vT == nil {
-				continue
-			}
-
-			(*vT)["User-Agent"] = "trackarr/" + config.Build.Version
-			inputs = append(inputs, vT)
-			setUserAgent = true
-		case Option:
-			setOption(vT, &client)
-		case *Option:
-			setOption(*vT, &client)
-		default:
-			inputs = append(inputs, vT)
-		}
+	if r.Retry != nil {
+		retry = *r.Retry
 	}
 
-	if !setUserAgent {
-		bV := ""
-		if config.Build != nil {
-			bV = config.Build.Version
-		} else {
-			bV = "v1.0.0"
-		}
-
-		inputs = append(inputs, req.Header{
-			"User-Agent": "trackarr/" + bV,
-		})
-	}
-
-	// add client to inputs
-	inputs = append(inputs, &client)
-	copy(inputs[1:], inputs)
-	inputs[0] = &client
-
-	// Response var
 	var resp *req.Resp
 	var err error
 
 	// Exponential back-off
 	for {
-		// do request
-		switch method {
-		case GET:
-			if rl != nil {
-				if err := rl.Take(rl.limiter); err != nil {
-					return nil, err
-				}
+		if r.Limiter != nil {
+			if err := r.Limiter.Take(r.Limiter.limiter); err != nil {
+				return nil, err
 			}
+		}
 
-			resp, err = req.Get(requestUrl, inputs...)
-		case POST:
-			if rl != nil {
-				if err := rl.Take(rl.limiter); err != nil {
-					return nil, err
-				}
-			}
-
-			resp, err = req.Post(requestUrl, inputs...)
-		default:
-			log.Error("Request method has not been implemented")
-			return nil, errors.New("request method has not been implemented")
+		if r.Method == GET {
+			resp, err = req.Get(r.URL, inputs...)
+		} else {
+			resp, err = req.Post(r.URL, inputs...)
 		}
 
 		// validate response
 		if err != nil {
-			log.WithError(err).Debugf("Failed requesting: %q", requestUrl)
+			log.WithError(err).Debugf("Failed requesting: %q", r.URL)
 			if os.IsTimeout(err) {
 				if retry.MaxAttempts == 0 || retry.Attempt() >= retry.MaxAttempts {
 					return nil, err
 				}
 
 				d := retry.Duration()
-				log.Debugf("Retrying failed request in %s: %q", d, requestUrl)
+				log.Debugf("Retrying failed request in %s: %q", d, r.URL)
 				time.Sleep(d)
 				continue
 			}
@@ -178,12 +152,10 @@ func GetResponse(method HTTPMethod, requestUrl string, timeout int, v ...interfa
 
 		// check status code vs retryable ones
 		if lists.IntListContains(resp.Response().StatusCode, retry.RetryableStatusCodes) {
-			// drain & close response body
 			DrainAndClose(resp.Response().Body)
 
-			// retry
 			d := retry.Duration()
-			log.Debugf("Retrying failed request in %s: %d - %q", d, resp.Response().StatusCode, requestUrl)
+			log.Debugf("Retrying failed request in %s: %d - %q", d, resp.Response().StatusCode, r.URL)
 
 			time.Sleep(d)
 			continue
@@ -191,16 +163,12 @@ func GetResponse(method HTTPMethod, requestUrl string, timeout int, v ...interfa
 
 		// check response content type vs expected one
 		if retry.ExpectedContentType != "" {
-			// check response content type
 			contentType := resp.Response().Header.Get("Content-Type")
-			if !strings.Contains(strings.ToLower(contentType), strings.ToLower(retry.ExpectedContentType)) &&
-				!strings.EqualFold(contentType, retry.ExpectedContentType) {
-				// drain & close response body
+			if !strings.Contains(strings.ToLower(contentType), strings.ToLower(retry.ExpectedContentType)) {
 				DrainAndClose(resp.Response().Body)
 
-				// retry
 				d := retry.Duration()
-				log.Debugf("Retrying failed request in %s: %d %s - %q", d, resp.Response().StatusCode, contentType, requestUrl)
+				log.Debugf("Retrying failed request in %s: %d %s - %q", d, resp.Response().StatusCode, contentType, r.URL)
 
 				time.Sleep(d)
 				continue
@@ -213,26 +181,26 @@ func GetResponse(method HTTPMethod, requestUrl string, timeout int, v ...interfa
 	return resp, err
 }
 
-func GetBodyBytes(method HTTPMethod, requestUrl string, timeout int, v ...interface{}) ([]byte, error) {
-	// send request
-	resp, err := GetResponse(method, requestUrl, timeout, v...)
+// BodyBytes sends the request and returns the full response body.
+func BodyBytes(r Request) ([]byte, error) {
+	resp, err := Do(r)
 	if err != nil {
 		return nil, err
 	}
 	defer DrainAndClose(resp.Response().Body)
 
-	// process response
 	body, err := ioutil.ReadAll(resp.Response().Body)
 	if err != nil {
-		log.WithError(err).Errorf("Failed reading response body for url: %q", requestUrl)
+		log.WithError(err).Errorf("Failed reading response body for url: %q", r.URL)
 		return nil, errors.Wrap(err, "failed reading url response body")
 	}
 
 	return body, nil
 }
 
-func GetBodyString(method HTTPMethod, requestUrl string, timeout int, v ...interface{}) (string, error) {
-	bodyBytes, err := GetBodyBytes(method, requestUrl, timeout, v...)
+// BodyString sends the request and returns the full response body as a string.
+func BodyString(r Request) (string, error) {
+	bodyBytes, err := BodyBytes(r)
 	if err != nil {
 		return "", err
 	}

@@ -1,11 +1,11 @@
 package repo
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"encoding/json"
 
 	"github.com/sollie/trackarr/database"
 	models "github.com/sollie/trackarr/database/models"
@@ -107,7 +107,7 @@ func PullTrackers(trackersPath string) error {
 func getAvailableTrackers() (map[string]*AutodlTracker, error) {
 	// retrieve trackers page
 	log.Infof("Finding available trackers from: %s", trackersRepository)
-	body, err := web.GetBodyBytes(web.GET, trackersRepository, 30)
+	body, err := web.BodyBytes(web.Request{Method: web.GET, URL: trackersRepository, Timeout: 30})
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func getAvailableTrackers() (map[string]*AutodlTracker, error) {
 		tracker := &AutodlTracker{
 			Name:    sanitizedTracker,
 			Version: parsed.Version,
-			URL: fmt.Sprintf("https://cdn.jsdelivr.net/gh/autodl-community/autodl-trackers@master/trackers/%s", parsed.Name),
+			URL:     fmt.Sprintf("https://cdn.jsdelivr.net/gh/autodl-community/autodl-trackers@master/trackers/%s", parsed.Name),
 		}
 		log.Tracef("Available tracker: %q - Version: %q - URL: %s", tracker.Name, tracker.Version, tracker.URL)
 
@@ -145,7 +145,7 @@ func getAvailableTrackers() (map[string]*AutodlTracker, error) {
 // pullTracker - Download a tracker and save to specified path
 func pullTracker(url string, path string) error {
 	// download tracker
-	trackerData, err := web.GetBodyString(web.GET, url, 30)
+	trackerData, err := web.BodyString(web.Request{Method: web.GET, URL: url, Timeout: 30})
 	if err != nil {
 		log.WithError(err).Errorf("Failed pulling tracker: %s", url)
 		return errors.Wrap(err, "failed downloading tracker")

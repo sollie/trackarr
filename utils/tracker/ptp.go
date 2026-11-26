@@ -69,16 +69,16 @@ func (t *Ptp) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	}
 
 	// send request
-	ptpReleaseAsBytes, err := web.GetBodyBytes(web.GET, ptpTorrentUrl, ptpTimeout, req.QueryParam{
+	ptpReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: ptpTorrentUrl, Timeout: ptpTimeout, Query: req.QueryParam{
 		"torrentid": torrent.TorrentId,
-	}, &web.Retry{
+	}, Headers: t.headers, Limiter: t.rl, Retry: &web.Retry{
 		MaxAttempts:         5,
 		ExpectedContentType: "application/json",
 		Backoff: backoff.Backoff{
 			Jitter: true,
 			Min:    2 * time.Second,
 			Max:    6 * time.Second,
-		}}, t.headers, t.rl)
+		}}})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent info bytes for: %s", torrent.TorrentId)
 	}

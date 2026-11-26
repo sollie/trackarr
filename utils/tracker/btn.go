@@ -95,15 +95,15 @@ func (t *Btn) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	t.log.Tracef("Request Body as JSON : %#v", req.BodyJSON(t.postRequest))
 
 	// send request
-	btnReleaseAsBytes, err := web.GetBodyBytes(web.POST, btnApiUrl, btnTimeout, req.BodyJSON(t.postRequest),
-		&web.Retry{
+	btnReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.POST, URL: btnApiUrl, Timeout: btnTimeout,
+		Body: req.BodyJSON(t.postRequest), Headers: t.headers, Limiter: t.rl, Retry: &web.Retry{
 			MaxAttempts:         6,
 			ExpectedContentType: "application/json",
 			Backoff: backoff.Backoff{
 				Jitter: true,
 				Min:    2 * time.Second,
 				Max:    6 * time.Second,
-			}}, t.headers, t.rl)
+			}}})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent bytes from: %s", torrentId)
 	}

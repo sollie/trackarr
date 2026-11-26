@@ -18,14 +18,14 @@ var ()
 
 func GetTorrentDetails(torrentUrl string, timeout int, headers req.Header) (*Data, error) {
 	// retrieve torrent file
-	torrentBytes, err := web.GetBodyBytes(web.GET, torrentUrl, timeout, &web.Retry{
+	torrentBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: torrentUrl, Timeout: timeout, Headers: headers, Retry: &web.Retry{
 		MaxAttempts:         6,
 		ExpectedContentType: "torrent",
 		Backoff: backoff.Backoff{
 			Jitter: true,
 			Min:    500 * time.Millisecond,
 			Max:    10 * time.Second,
-		}}, headers)
+		}}})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent bytes from: %s", torrentUrl)
 	}
@@ -57,7 +57,7 @@ func GetTorrentDetails(torrentUrl string, timeout int, headers req.Header) (*Dat
 	}, nil
 }
 
-//Decode byte-array of torrent file into TorrentMeta struct
+// Decode byte-array of torrent file into TorrentMeta struct
 func TorrentDecode(b []byte) (*TorrentMeta, error) {
 	obj, err := bencode.Unmarshal(b)
 	if err != nil {
