@@ -7,7 +7,7 @@ import (
 	"github.com/sollie/trackarr/logger"
 	"github.com/sollie/trackarr/version"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ type UpdateResponse struct {
 
 /* Public */
 
-func UpdateStatus(c echo.Context) error {
+func UpdateStatus(c *echo.Context) error {
 	// log
 	log := logger.GetLogger("api").WithFields(logrus.Fields{"client": c.RealIP()})
 

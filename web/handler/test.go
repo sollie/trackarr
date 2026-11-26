@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/sollie/trackarr/logger"
 	"net/http"
@@ -20,7 +20,7 @@ type TestResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
-func Test(c echo.Context) error {
+func Test(c *echo.Context) error {
 	// log
 	log := logger.GetLogger("web").WithFields(logrus.Fields{"client": c.RealIP()})
 

@@ -6,7 +6,7 @@ import (
 	"github.com/sollie/trackarr/logger"
 	"github.com/sollie/trackarr/runtime"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,7 +20,7 @@ type IrcTrackerStatus struct {
 
 /* Public */
 
-func IrcStatus(c echo.Context) error {
+func IrcStatus(c *echo.Context) error {
 	// log
 	log := logger.GetLogger("api").WithFields(logrus.Fields{"client": c.RealIP()})
 

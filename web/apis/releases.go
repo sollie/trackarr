@@ -9,7 +9,7 @@ import (
 	"github.com/sollie/trackarr/logger"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +19,7 @@ var (
 
 /* Public */
 
-func Releases(c echo.Context) error {
+func Releases(c *echo.Context) error {
 	// log
 	log := logger.GetLogger("api").WithFields(logrus.Fields{"client": c.RealIP()})
 

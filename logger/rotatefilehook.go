@@ -3,8 +3,8 @@ package logger
 import (
 	"io"
 
-	"gopkg.in/natefinch/lumberjack.v2"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type RotateFileConfig struct {

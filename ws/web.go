@@ -1,9 +1,9 @@
 package ws
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func HandlerFunc(context echo.Context) error {
-	return m.HandleRequest(context.Response().Writer, context.Request())
+func HandlerFunc(context *echo.Context) error {
+	return m.HandleRequest(context.Response(), context.Request())
 }

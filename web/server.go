@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"path"
@@ -14,11 +15,11 @@ import (
 	"github.com/sollie/trackarr/ws"
 
 	rice "github.com/GeertJohan/go.rice"
-	"github.com/foolin/goview/supports/echoview-v4"
+	"github.com/foolin/goview"
 	"github.com/foolin/goview/supports/gorice"
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 )
 
 /* Structs */
@@ -34,6 +35,15 @@ var (
 	log = logger.GetLogger("web")
 )
 
+// viewRenderer adapts a goview engine to the echo renderer interface
+type viewRenderer struct {
+	engine *goview.ViewEngine
+}
+
+func (v *viewRenderer) Render(_ *echo.Context, w io.Writer, name string, data any) error {
+	return v.engine.RenderWriter(w, name, data)
+}
+
 /* Public */
 
 func (cv *CustomValidator) Validate(i interface{}) error {
@@ -45,7 +55,7 @@ func Listen(cfg *config.Configuration, logLevel int) {
 	e := echo.New()
 	if logLevel > 1 {
 		// log to stdout
-		e.Use(middleware.Logger())
+		e.Use(middleware.RequestLogger())
 	}
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -56,9 +66,9 @@ func Listen(cfg *config.Configuration, logLevel int) {
 	}
 
 	// setup template renderer
-	ev := echoview.Default()
+	ev := goview.Default()
 	ev.SetFileHandler(gorice.FileHandler(rice.MustFindBox("trackarr-ui/dist")))
-	e.Renderer = ev
+	e.Renderer = &viewRenderer{engine: ev}
 
 	// setup websocket server
 	if err := ws.Init(); err != nil {
@@ -83,7 +93,7 @@ func Listen(cfg *config.Configuration, logLevel int) {
 	// Basic auth
 	if cfg.Server.User != "" && cfg.Server.Pass != "" {
 		// user and pass were defined, use basic auth middleware
-		gui.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
+		gui.Use(middleware.BasicAuth(func(c *echo.Context, username, password string) (bool, error) {
 			if username == cfg.Server.User && password == cfg.Server.Pass {
 				return true, nil
 			}
@@ -94,11 +104,11 @@ func Listen(cfg *config.Configuration, logLevel int) {
 	// Redirect to base URL when not `/`
 	if cfg.Server.BaseURL != "/" {
 		// Root to base URL
-		e.GET("/", func(c echo.Context) error {
+		e.GET("/", func(c *echo.Context) error {
 			return c.Redirect(http.StatusFound, cfg.Server.BaseURL+"/")
 		})
 		// Add `/` to base URL
-		gui.GET("", handler.Index, middleware.AddTrailingSlashWithConfig(middleware.TrailingSlashConfig{
+		gui.GET("", handler.Index, middleware.AddTrailingSlashWithConfig(middleware.AddTrailingSlashConfig{
 			RedirectCode: http.StatusFound,
 		}))
 	}
@@ -112,7 +122,7 @@ func Listen(cfg *config.Configuration, logLevel int) {
 	api := e.Group(path.Join(cfg.Server.BaseURL, "/api"),
 		middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{
 			KeyLookup: "query:apikey",
-			Validator: func(key string, c echo.Context) (bool, error) {
+			Validator: func(c *echo.Context, key string, _ middleware.ExtractorSource) (bool, error) {
 				return key == cfg.Server.ApiKey, nil
 			},
 		}),
@@ -138,15 +148,16 @@ func Listen(cfg *config.Configuration, logLevel int) {
 		log.Info("Started loghook")
 	}
 
-	/* start echo server */
-	runtime.Web = e
-	e.HideBanner = true
-	e.HidePort = true
+	/* start http server */
+	runtime.Web = &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Handler: e,
+	}
 
 	log.Infof("Listening on %s:%d%s", cfg.Server.Host, cfg.Server.Port, cfg.Server.BaseURL)
 
 	go func() {
-		if err := e.Start(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)); err != nil && err != http.ErrServerClosed {
+		if err := runtime.Web.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.WithError(err).Fatalf("Failed listening on %s:%d", cfg.Server.Host, cfg.Server.Port)
 		}
 	}()

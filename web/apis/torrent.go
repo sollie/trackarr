@@ -15,7 +15,7 @@ import (
 
 	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +24,7 @@ const TorrentFileTimeout = 30
 
 /* Public */
 
-func Torrent(c echo.Context) error {
+func Torrent(c *echo.Context) error {
 	// parse query params
 	url := c.QueryParam("url")
 	cookie := c.QueryParam("cookie")

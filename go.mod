@@ -17,7 +17,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/jpillora/backoff v1.1.0
 	github.com/json-iterator/go v1.1.12
-	github.com/labstack/echo/v4 v4.16.6
+	github.com/labstack/echo/v5 v5.4.7
 	github.com/lithammer/shortuuid/v5 v5.0.0
 	github.com/olahol/melody v1.4.0
 	github.com/pkg/errors v0.9.1
@@ -42,7 +42,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
@@ -56,8 +55,6 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.etcd.io/bbolt v1.5.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.59.0 // indirect
