@@ -3,15 +3,13 @@ package tracker
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/imroc/req"
-	"github.com/jpillora/backoff"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/sollie/trackarr/config"
-	"github.com/sollie/trackarr/utils/maps"
 	"github.com/sollie/trackarr/utils/web"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 /* Const */
@@ -24,10 +22,10 @@ const (
 
 /* Struct */
 type Ptp struct {
-	log     *logrus.Entry
+	client  *lookupClient
 	tracker *config.TrackerInstance
 	headers req.Header
-	rl      *web.RateLimiter
+	baseURL string
 }
 
 /* Private */
@@ -35,55 +33,48 @@ type Ptp struct {
 func newPtp(tracker *config.TrackerInstance) (Interface, error) {
 	log := log.WithField("api", tracker.Name)
 
-	// validate required tracker settings available
-	apiUser, err := maps.GetStringMapValue(tracker.Config.Settings, "api_user", false)
+	settings, err := requireSettings(tracker.Config.Settings, "api_user", "api_key")
 	if err != nil {
-		return nil, errors.WithMessage(err, "api_user setting missing")
+		return nil, err
 	}
 
-	apiKey, err := maps.GetStringMapValue(tracker.Config.Settings, "api_key", false)
-	if err != nil {
-		return nil, errors.WithMessage(err, "api_key setting missing")
-	}
-
-	// return api instance
 	return &Ptp{
-		log:     log,
+		client: &lookupClient{
+			log: log,
+			limiter: web.GetRateLimiter(tracker.Name, ptpApiRateLimit, ptpApiRateLimitDuration, 1, func(rl *rate.Limiter) error {
+				return rl.Wait(context.Background())
+			}),
+			timeout:    ptpTimeout,
+			attempts:   5,
+			minBackoff: 2 * time.Second,
+			maxBackoff: 6 * time.Second,
+		},
 		tracker: tracker,
 		headers: req.Header{
-			"ApiUser": apiUser,
-			"ApiKey":  apiKey,
+			"ApiUser": settings[0],
+			"ApiKey":  settings[1],
 		},
-		rl: web.GetRateLimiter(tracker.Name, ptpApiRateLimit, ptpApiRateLimitDuration, 1, func(rl *rate.Limiter) error {
-			return rl.Wait(context.Background())
-		}),
+		baseURL: ptpTorrentUrl,
 	}, nil
 }
 
 /* Interface */
 
 func (t *Ptp) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) {
-	// validate torrent has required information
 	if torrent.TorrentId == "" {
 		return nil, fmt.Errorf("missing mandatory torrentId: %#v", torrent)
 	}
 
-	// send request
-	ptpReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: ptpTorrentUrl, Timeout: ptpTimeout, Query: req.QueryParam{
-		"torrentid": torrent.TorrentId,
-	}, Headers: t.headers, Limiter: t.rl, Retry: &web.Retry{
-		MaxAttempts:         5,
-		ExpectedContentType: "application/json",
-		Backoff: backoff.Backoff{
-			Jitter: true,
-			Min:    2 * time.Second,
-			Max:    6 * time.Second,
-		}}})
+	body, err := t.client.fetch(lookupRequest{
+		Method:  web.GET,
+		URL:     t.baseURL,
+		Headers: t.headers,
+		Query:   req.QueryParam{"torrentid": torrent.TorrentId},
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent info bytes for: %s", torrent.TorrentId)
 	}
 
-	// parse response
 	var ptpInfo struct {
 		Torrents []struct {
 			Id          string // "1368",
@@ -91,15 +82,10 @@ func (t *Ptp) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 			ReleaseName string // "The Godfather Part 3",
 		}
 	}
-
-	if err := json.Unmarshal(ptpReleaseAsBytes, &ptpInfo); err != nil {
-		t.log.WithError(err).Errorf("Failed unmarshalling response: %#v", string(ptpReleaseAsBytes))
-		return nil, errors.Wrap(err, "failed unmarshalling response")
+	if err := t.client.decode(body, &ptpInfo); err != nil {
+		return nil, err
 	}
 
-	t.log.Tracef("GetReleaseInfo Response: %+v", ptpInfo)
-
-	// find torrent in parsed response
 	for _, v := range ptpInfo.Torrents {
 		if v.Id == torrent.TorrentId {
 			return &TorrentInfo{

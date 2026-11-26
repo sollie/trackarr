@@ -39,7 +39,8 @@ func GetRateLimiter(name string, limit int, duration time.Duration, burst int, c
 
 	rl, ok = rateLimiters[lowerName]
 	if !ok {
-		rateLimiters[lowerName] = newRateLimiter(limit, duration, burst, check)
+		rl = newRateLimiter(limit, duration, burst, check)
+		rateLimiters[lowerName] = rl
 
 		log.WithFields(logrus.Fields{
 			"name":  name,

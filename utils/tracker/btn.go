@@ -2,16 +2,14 @@ package tracker
 
 import (
 	"fmt"
-	"github.com/imroc/req"
-	"github.com/jpillora/backoff"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/sollie/trackarr/config"
-	"github.com/sollie/trackarr/utils/maps"
-	"github.com/sollie/trackarr/utils/web"
-	"golang.org/x/time/rate"
 	"net/url"
 	"time"
+
+	"github.com/imroc/req"
+	"github.com/pkg/errors"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/utils/web"
+	"golang.org/x/time/rate"
 )
 
 /* Const */
@@ -24,11 +22,10 @@ const (
 
 /* Struct */
 type Btn struct {
-	log         *logrus.Entry
-	tracker     *config.TrackerInstance
-	rl          *web.RateLimiter
-	postRequest btnRequest
-	headers     req.Header
+	client  *lookupClient
+	tracker *config.TrackerInstance
+	apiKey  string
+	baseURL string
 }
 
 type (
@@ -45,71 +42,61 @@ type (
 func newBtn(tracker *config.TrackerInstance) (Interface, error) {
 	log := log.WithField("api", tracker.Name)
 
-	// validate required tracker settings available
-	apiKey, err := maps.GetStringMapValue(tracker.Config.Settings, "api_key", false)
+	settings, err := requireSettings(tracker.Config.Settings, "api_key")
 	if err != nil {
-		return nil, errors.WithMessage(err, "api_key setting missing")
+		return nil, err
 	}
 
-	// return api instance
 	return &Btn{
-		log:     log,
-		tracker: tracker,
-		headers: req.Header{
-			"Content-Type": "application/json",
-		},
-		postRequest: btnRequest{
-			Id:      1,
-			JsonRPC: "2.0",
-			Method:  "getTorrentById",
-			Params:  [2]string{apiKey},
-		},
-		rl: web.GetRateLimiter(tracker.Name, btnApiRateLimit, btnApiRateLimitDuration, btnApiRateLimit, func(rl *rate.Limiter) error {
-			if !rl.Allow() {
-				return errors.New("rate limit reached, too many requests to the host")
-			}
+		client: &lookupClient{
+			log: log,
+			limiter: web.GetRateLimiter(tracker.Name, btnApiRateLimit, btnApiRateLimitDuration, btnApiRateLimit, func(rl *rate.Limiter) error {
+				if !rl.Allow() {
+					return errors.New("rate limit reached, too many requests to the host")
+				}
 
-			return nil
-		}),
+				return nil
+			}),
+			timeout:    btnTimeout,
+			attempts:   6,
+			minBackoff: 2 * time.Second,
+			maxBackoff: 6 * time.Second,
+		},
+		tracker: tracker,
+		apiKey:  settings[0],
+		baseURL: btnApiUrl,
 	}, nil
 }
 
 /* Interface */
 
 func (t *Btn) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) {
-	//extract torrentId
 	torrentUrl, err := url.Parse(torrent.TorrentURL)
 	if err != nil {
 		return nil, fmt.Errorf("malformed URL: %s", torrent.TorrentURL)
 	}
 
-	// validate torrentId
 	torrentId := torrentUrl.Query().Get("id")
 	if torrentId == "" {
 		return nil, fmt.Errorf("missing mandatory torrentId: %#v", torrent)
 	}
-	t.log.Tracef("Extracted TorrentID: %s", torrentId)
 
-	// prepare request
-	t.postRequest.Params[1] = torrentId
-	t.log.Tracef("Request Body as JSON : %#v", req.BodyJSON(t.postRequest))
-
-	// send request
-	btnReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.POST, URL: btnApiUrl, Timeout: btnTimeout,
-		Body: req.BodyJSON(t.postRequest), Headers: t.headers, Limiter: t.rl, Retry: &web.Retry{
-			MaxAttempts:         6,
-			ExpectedContentType: "application/json",
-			Backoff: backoff.Backoff{
-				Jitter: true,
-				Min:    2 * time.Second,
-				Max:    6 * time.Second,
-			}}})
+	// the request is built per call, so concurrent lookups never share a mutable body
+	body, err := t.client.fetch(lookupRequest{
+		Method:  web.POST,
+		URL:     t.baseURL,
+		Headers: req.Header{"Content-Type": "application/json"},
+		Body: req.BodyJSON(btnRequest{
+			Id:      1,
+			JsonRPC: "2.0",
+			Method:  "getTorrentById",
+			Params:  [2]string{t.apiKey, torrentId},
+		}),
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent bytes from: %s", torrentId)
 	}
-	t.log.Tracef("Raw API Response : %s", string(btnReleaseAsBytes))
 
-	// parse response
 	var btnInfo struct {
 		Id     int32
 		Result struct {
@@ -118,12 +105,9 @@ func (t *Btn) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 			ReleaseName string // "Shahs.of.Sunset.S08E09.iNTERNAL.1080p.WEB.h264-TRUMP",
 		}
 	}
-
-	if err := json.Unmarshal(btnReleaseAsBytes, &btnInfo); err != nil {
-		t.log.WithError(err).Errorf("Failed unmarshalling response: %#v", btnReleaseAsBytes)
-		return nil, errors.Wrap(err, "failed unmarshalling response")
+	if err := t.client.decode(body, &btnInfo); err != nil {
+		return nil, err
 	}
-	t.log.Tracef("GetReleaseInfo Response: %+v", btnInfo)
 
 	return &TorrentInfo{
 		Name: btnInfo.Result.ReleaseName,

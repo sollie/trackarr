@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"github.com/dustin/go-humanize"
 	"github.com/imroc/req"
-	"github.com/jpillora/backoff"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/sollie/trackarr/config"
-	"github.com/sollie/trackarr/utils/maps"
 	"github.com/sollie/trackarr/utils/web"
 	"golang.org/x/time/rate"
 	"net/url"
@@ -37,10 +34,11 @@ var (
 
 /* Struct */
 type Mtv struct {
-	log           *logrus.Entry
+	client        *lookupClient
 	tracker       *config.TrackerInstance
 	loginBody     req.Param
-	rl            *web.RateLimiter
+	loginURL      string
+	torrentURL    string
 	mtx           sync.Mutex
 	cookieExpiry  *time.Time
 	loginAttempts int
@@ -52,29 +50,32 @@ func newMtv(tracker *config.TrackerInstance) (Interface, error) {
 	log := log.WithField("api", tracker.Name)
 
 	// validate required tracker settings available
-	siteUser, err := maps.GetStringMapValue(tracker.Config.Settings, "site_user", false)
+	settings, err := requireSettings(tracker.Config.Settings, "site_user", "site_pass")
 	if err != nil {
-		return nil, errors.WithMessage(err, "site_user setting missing")
-	}
-
-	sitePass, err := maps.GetStringMapValue(tracker.Config.Settings, "site_pass", false)
-	if err != nil {
-		return nil, errors.WithMessage(err, "site_pass setting missing")
+		return nil, err
 	}
 
 	// return api instance
 	return &Mtv{
-		log:     log,
-		tracker: tracker,
+		client: &lookupClient{
+			log: log,
+			limiter: web.GetRateLimiter(tracker.Name, mtvApiRateLimit, mtvApiRateLimitDuration, 1, func(rl *rate.Limiter) error {
+				return rl.Wait(context.Background())
+			}),
+			timeout:    ptpTimeout,
+			attempts:   5,
+			minBackoff: 2 * time.Second,
+			maxBackoff: 5 * time.Second,
+		},
+		tracker:    tracker,
+		loginURL:   mtvLoginUrl,
+		torrentURL: mtvTorrentUrl,
 		loginBody: req.Param{
-			"username":   siteUser,
-			"password":   sitePass,
+			"username":   settings[0],
+			"password":   settings[1],
 			"login":      "Log in",
 			"keeplogged": 1,
 		},
-		rl: web.GetRateLimiter(tracker.Name, mtvApiRateLimit, mtvApiRateLimitDuration, 1, func(rl *rate.Limiter) error {
-			return rl.Wait(context.Background())
-		}),
 		loginAttempts: 0,
 	}, nil
 }
@@ -102,7 +103,7 @@ func (t *Mtv) login() error {
 	// check cookie expiry
 	if t.cookieExpiry != nil && t.cookieExpiry.After(time.Now().UTC()) {
 		// cookie is still valid
-		t.log.Tracef("Session cookie still valid until: %s", humanize.Time(*t.cookieExpiry))
+		t.client.log.Tracef("Session cookie still valid until: %s", humanize.Time(*t.cookieExpiry))
 		return nil
 	}
 
@@ -114,7 +115,7 @@ func (t *Mtv) login() error {
 	t.loginAttempts++
 
 	// send request
-	resp, err := web.Do(web.Request{Method: web.POST, URL: mtvLoginUrl, Timeout: mtvTimeout, Body: t.loginBody, NoRedirect: true})
+	resp, err := web.Do(web.Request{Method: web.POST, URL: t.loginURL, Timeout: mtvTimeout, Body: t.loginBody, NoRedirect: true})
 	if err != nil {
 		return errors.Wrapf(err, "failed logging into %q", t.tracker.Name)
 	}
@@ -127,7 +128,7 @@ func (t *Mtv) login() error {
 
 	// validate cookie
 	cookies := resp.Response().Cookies()
-	t.log.Tracef("Login response cookies: %v", cookies)
+	t.client.log.Tracef("Login response cookies: %v", cookies)
 
 	for _, cookie := range cookies {
 		// skip non-session cookie
@@ -154,7 +155,7 @@ func (t *Mtv) login() error {
 		t.cookieExpiry = &cookieExpiry
 		t.loginAttempts = 0
 
-		t.log.Debugf("Successfully logged in, session cookie valid until: %v", humanize.Time(*t.cookieExpiry))
+		t.client.log.Debugf("Successfully logged in, session cookie valid until: %v", humanize.Time(*t.cookieExpiry))
 		return nil
 	}
 
@@ -178,7 +179,7 @@ func (t *Mtv) checkResponseBytes(response []byte) {
 	defer t.mtx.Unlock()
 
 	t.cookieExpiry = nil
-	t.log.Warn("Session cookie appears to be invalid, next release will restart the login process...")
+	t.client.log.Warn("Session cookie appears to be invalid, next release will restart the login process...")
 }
 
 /* Interface */
@@ -195,25 +196,21 @@ func (t *Mtv) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	// validate session cookie / re-login
 	if err := t.login(); err != nil {
 		if err == errMtvMaxLoginAttempts {
-			t.log.Trace("Aborting api lookup as max login attempts has been reached")
+			t.client.log.Trace("Aborting api lookup as max login attempts has been reached")
 			return nil, nil
 		}
 
 		return nil, err
 	}
 
-	// send request
-	mtvReleaseAsBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: mtvTorrentUrl, Timeout: ptpTimeout, Query: req.QueryParam{
-		"action": "torrent",
-		"id":     torrentId,
-	}, Limiter: t.rl, Retry: &web.Retry{
-		MaxAttempts:         5,
-		ExpectedContentType: "application/json",
-		Backoff: backoff.Backoff{
-			Jitter: true,
-			Min:    2 * time.Second,
-			Max:    5 * time.Second,
-		}}})
+	mtvReleaseAsBytes, err := t.client.fetch(lookupRequest{
+		Method: web.GET,
+		URL:    t.torrentURL,
+		Query: req.QueryParam{
+			"action": "torrent",
+			"id":     torrentId,
+		},
+	})
 	if err != nil {
 		t.checkResponseBytes(mtvReleaseAsBytes)
 		return nil, errors.Wrapf(err, "failed retrieving torrent info bytes for: %s", torrent.TorrentId)
@@ -234,13 +231,10 @@ func (t *Mtv) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 		} `json:"response"`
 	}
 
-	if err := json.Unmarshal(mtvReleaseAsBytes, &mtvInfo); err != nil {
-		t.log.WithError(err).Errorf("Failed unmarshalling response: %#v", string(mtvReleaseAsBytes))
+	if err := t.client.decode(mtvReleaseAsBytes, &mtvInfo); err != nil {
 		t.checkResponseBytes(mtvReleaseAsBytes)
-		return nil, errors.Wrap(err, "failed unmarshalling response")
+		return nil, err
 	}
-
-	t.log.Tracef("GetReleaseInfo Response: %+v", mtvInfo)
 
 	// validate response
 	if mtvInfo.Status != "success" {
