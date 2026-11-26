@@ -1,12 +1,5 @@
 # TRACKARR
 
-[![made-with-go](https://img.shields.io/badge/Made%20with-Go-blue.svg?style=flat-square)](https://golang.org/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%203-blue.svg?style=flat-square)](https://github.com/l3uddz/plex_autoscan/blob/master/LICENSE.md)
-[![Discord](https://img.shields.io/discord/381077432285003776.svg?colorB=177DC1&label=Discord&style=flat-square)](https://discord.io/cloudbox)
-[![Contributing](https://img.shields.io/badge/Contributing-gray.svg?style=flat-square)](CONTRIBUTING.md)
-[![Credits](https://img.shields.io/badge/Credits-gray.svg?style=flat-square)](CREDITS.md)
-[![Donate](https://img.shields.io/badge/Donate-gray.svg?style=flat-square)](#donate)
-
 > **Note:** This is a fork of [cloudb0x/trackarr](https://gitlab.com/cloudb0x/trackarr), maintained at [sollie/trackarr](https://github.com/sollie/trackarr).
 
 ## Basics

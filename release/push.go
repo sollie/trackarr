@@ -1,15 +1,15 @@
 package release
 
 import (
-	"gitlab.com/cloudb0x/trackarr/utils/defaults"
+	"github.com/sollie/trackarr/utils/defaults"
 	"strings"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/database"
-	"gitlab.com/cloudb0x/trackarr/database/models"
-	"gitlab.com/cloudb0x/trackarr/utils/web"
-	"gitlab.com/cloudb0x/trackarr/ws"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/database"
+	"github.com/sollie/trackarr/database/models"
+	"github.com/sollie/trackarr/utils/web"
+	"github.com/sollie/trackarr/ws"
 
 	"github.com/imroc/req"
 	"github.com/jpillora/backoff"

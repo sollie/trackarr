@@ -2,8 +2,8 @@ package release
 
 import (
 	"github.com/pkg/errors"
-	stringutils "gitlab.com/cloudb0x/trackarr/utils/strings"
-	"gitlab.com/cloudb0x/trackarr/utils/tracker"
+	stringutils "github.com/sollie/trackarr/utils/strings"
+	"github.com/sollie/trackarr/utils/tracker"
 )
 
 /* Private */

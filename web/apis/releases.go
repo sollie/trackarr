@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"gitlab.com/cloudb0x/trackarr/database"
-	"gitlab.com/cloudb0x/trackarr/database/models"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/database"
+	"github.com/sollie/trackarr/database/models"
+	"github.com/sollie/trackarr/logger"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/labstack/echo/v4"

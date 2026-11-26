@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	listutils "gitlab.com/cloudb0x/trackarr/utils/lists"
+	"github.com/sollie/trackarr/config"
+	listutils "github.com/sollie/trackarr/utils/lists"
 
 	"github.com/antchfx/xmlquery"
 )

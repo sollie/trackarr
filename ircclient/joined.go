@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	listutils "gitlab.com/cloudb0x/trackarr/utils/lists"
+	listutils "github.com/sollie/trackarr/utils/lists"
 
 	irc "github.com/thoj/go-ircevent"
 )

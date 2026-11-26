@@ -3,7 +3,7 @@ package torrent
 import (
 	"testing"
 
-	"gitlab.com/cloudb0x/trackarr/cache"
+	"github.com/sollie/trackarr/cache"
 
 	"github.com/imroc/req"
 )

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	listutils "gitlab.com/cloudb0x/trackarr/utils/lists"
+	listutils "github.com/sollie/trackarr/utils/lists"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/pkg/errors"

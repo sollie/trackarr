@@ -5,7 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/olahol/melody"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/logger"
 )
 
 var (

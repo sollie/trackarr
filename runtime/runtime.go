@@ -1,10 +1,10 @@
 package runtime
 
 import (
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/ircclient"
-	"gitlab.com/cloudb0x/trackarr/loghook"
-	"gitlab.com/cloudb0x/trackarr/tasks"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/ircclient"
+	"github.com/sollie/trackarr/loghook"
+	"github.com/sollie/trackarr/tasks"
 
 	"github.com/labstack/echo/v4"
 )

@@ -3,15 +3,15 @@ package apis
 import (
 	"bytes"
 	"fmt"
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/utils/torrent"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/utils/torrent"
 	"net/http"
 	"strings"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/cache"
-	"gitlab.com/cloudb0x/trackarr/logger"
-	webutils "gitlab.com/cloudb0x/trackarr/utils/web"
+	"github.com/sollie/trackarr/cache"
+	"github.com/sollie/trackarr/logger"
+	webutils "github.com/sollie/trackarr/utils/web"
 
 	"github.com/imroc/req"
 	"github.com/jpillora/backoff"

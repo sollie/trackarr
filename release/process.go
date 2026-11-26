@@ -2,12 +2,12 @@ package release
 
 import (
 	"github.com/docker/go-units"
-	"gitlab.com/cloudb0x/trackarr/cache"
+	"github.com/sollie/trackarr/cache"
 	"net/url"
 	"strings"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/utils/web"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/utils/web"
 
 	"github.com/pkg/errors"
 )

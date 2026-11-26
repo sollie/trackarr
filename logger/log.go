@@ -3,7 +3,7 @@ package logger
 import (
 	"runtime"
 
-	"gitlab.com/cloudb0x/trackarr/utils/strings"
+	"github.com/sollie/trackarr/utils/strings"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

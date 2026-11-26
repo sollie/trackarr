@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/utils/maps"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/utils/maps"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

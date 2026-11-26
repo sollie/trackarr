@@ -3,7 +3,7 @@ package parser
 import (
 	"regexp"
 
-	"gitlab.com/cloudb0x/trackarr/config"
+	"github.com/sollie/trackarr/config"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/pkg/errors"

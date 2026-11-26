@@ -1,10 +1,10 @@
 package autodl
 
 import (
-	"gitlab.com/cloudb0x/trackarr/autodl/repo"
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
-	stringutils "gitlab.com/cloudb0x/trackarr/utils/strings"
+	"github.com/sollie/trackarr/autodl/repo"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
+	stringutils "github.com/sollie/trackarr/utils/strings"
 )
 
 var (

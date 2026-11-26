@@ -6,12 +6,12 @@ import (
 	_ "net/http/pprof"
 	"path"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
-	"gitlab.com/cloudb0x/trackarr/runtime"
-	"gitlab.com/cloudb0x/trackarr/web/apis"
-	"gitlab.com/cloudb0x/trackarr/web/handler"
-	"gitlab.com/cloudb0x/trackarr/ws"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
+	"github.com/sollie/trackarr/runtime"
+	"github.com/sollie/trackarr/web/apis"
+	"github.com/sollie/trackarr/web/handler"
+	"github.com/sollie/trackarr/ws"
 
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/foolin/goview/supports/echoview-v4"

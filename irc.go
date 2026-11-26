@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gitlab.com/cloudb0x/trackarr/ircclient"
-	"gitlab.com/cloudb0x/trackarr/runtime"
+	"github.com/sollie/trackarr/ircclient"
+	"github.com/sollie/trackarr/runtime"
 )
 
 // Initialize IRC clients for trackers

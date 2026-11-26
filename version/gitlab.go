@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/utils/web"
+	"github.com/sollie/trackarr/utils/web"
 
 	"github.com/imroc/req"
 	"github.com/pkg/errors"

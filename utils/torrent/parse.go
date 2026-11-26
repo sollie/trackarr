@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/utils/web"
+	"github.com/sollie/trackarr/utils/web"
 
 	bencode "github.com/IncSW/go-bencode"
 	"github.com/imroc/req"

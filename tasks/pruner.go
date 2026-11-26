@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/database"
-	"gitlab.com/cloudb0x/trackarr/database/models"
-	"gitlab.com/cloudb0x/trackarr/ws"
+	"github.com/sollie/trackarr/database"
+	"github.com/sollie/trackarr/database/models"
+	"github.com/sollie/trackarr/ws"
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"

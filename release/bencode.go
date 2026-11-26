@@ -3,8 +3,8 @@ package release
 import (
 	"github.com/imroc/req"
 	"github.com/pkg/errors"
-	"gitlab.com/cloudb0x/trackarr/cache"
-	"gitlab.com/cloudb0x/trackarr/utils/torrent"
+	"github.com/sollie/trackarr/cache"
+	"github.com/sollie/trackarr/utils/torrent"
 )
 
 /* Const */

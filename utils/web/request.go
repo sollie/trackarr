@@ -1,14 +1,14 @@
 package web
 
 import (
-	"gitlab.com/cloudb0x/trackarr/config"
+	"github.com/sollie/trackarr/config"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/logger"
-	"gitlab.com/cloudb0x/trackarr/utils/lists"
+	"github.com/sollie/trackarr/logger"
+	"github.com/sollie/trackarr/utils/lists"
 
 	"github.com/imroc/req"
 	"github.com/jpillora/backoff"

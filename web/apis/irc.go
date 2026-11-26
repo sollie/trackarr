@@ -3,8 +3,8 @@ package apis
 import (
 	"net/http"
 
-	"gitlab.com/cloudb0x/trackarr/logger"
-	"gitlab.com/cloudb0x/trackarr/runtime"
+	"github.com/sollie/trackarr/logger"
+	"github.com/sollie/trackarr/runtime"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"

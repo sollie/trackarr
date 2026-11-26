@@ -1,8 +1,8 @@
 package version
 
 import (
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"

@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"gitlab.com/cloudb0x/trackarr/config"
+	"github.com/sollie/trackarr/config"
 
 	"github.com/labstack/echo/v4"
 )

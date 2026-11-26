@@ -1,10 +1,10 @@
 package tracker
 
 import (
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
-	"gitlab.com/cloudb0x/trackarr/runtime"
-	"gitlab.com/cloudb0x/trackarr/tracker/parser"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
+	"github.com/sollie/trackarr/runtime"
+	"github.com/sollie/trackarr/tracker/parser"
 
 	"github.com/pkg/errors"
 )

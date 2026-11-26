@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/logger"
 
 	"github.com/ReneKroon/ttlcache/v2"
 )

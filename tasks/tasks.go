@@ -3,8 +3,8 @@ package tasks
 import (
 	"time"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
 
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"

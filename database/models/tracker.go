@@ -1,7 +1,7 @@
 package models
 
 import (
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/logger"
 
 	"github.com/asdine/storm/v3"
 )

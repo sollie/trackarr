@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"gitlab.com/cloudb0x/trackarr/config"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/config"
+	"github.com/sollie/trackarr/logger"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/pkg/errors"

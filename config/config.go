@@ -6,8 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"gitlab.com/cloudb0x/trackarr/logger"
-	stringutils "gitlab.com/cloudb0x/trackarr/utils/strings"
+	"github.com/sollie/trackarr/logger"
+	stringutils "github.com/sollie/trackarr/utils/strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/lithammer/shortuuid/v3"

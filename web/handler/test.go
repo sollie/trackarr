@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/cloudb0x/trackarr/logger"
+	"github.com/sollie/trackarr/logger"
 	"net/http"
 	"strings"
 )

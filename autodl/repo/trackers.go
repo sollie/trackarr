@@ -7,11 +7,11 @@ import (
 	"strings"
 	"encoding/json"
 
-	"gitlab.com/cloudb0x/trackarr/database"
-	models "gitlab.com/cloudb0x/trackarr/database/models"
-	"gitlab.com/cloudb0x/trackarr/logger"
-	stringutils "gitlab.com/cloudb0x/trackarr/utils/strings"
-	"gitlab.com/cloudb0x/trackarr/utils/web"
+	"github.com/sollie/trackarr/database"
+	models "github.com/sollie/trackarr/database/models"
+	"github.com/sollie/trackarr/logger"
+	stringutils "github.com/sollie/trackarr/utils/strings"
+	"github.com/sollie/trackarr/utils/web"
 
 	"github.com/pkg/errors"
 )

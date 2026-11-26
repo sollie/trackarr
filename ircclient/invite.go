@@ -2,7 +2,7 @@ package ircclient
 
 import (
 	irc "github.com/thoj/go-ircevent"
-	"gitlab.com/cloudb0x/trackarr/utils/lists"
+	"github.com/sollie/trackarr/utils/lists"
 	"time"
 )
 

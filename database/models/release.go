@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	stringutils "gitlab.com/cloudb0x/trackarr/utils/strings"
+	stringutils "github.com/sollie/trackarr/utils/strings"
 
 	"github.com/asdine/storm/v3"
 	"github.com/asdine/storm/v3/q"
