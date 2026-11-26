@@ -7,6 +7,7 @@
 [![Credits](https://img.shields.io/badge/Credits-gray.svg?style=flat-square)](CREDITS.md)
 [![Donate](https://img.shields.io/badge/Donate-gray.svg?style=flat-square)](#donate)
 
+> **Note:** This is a fork of [cloudb0x/trackarr](https://gitlab.com/cloudb0x/trackarr), maintained at [sollie/trackarr](https://github.com/sollie/trackarr).
 
 ## Basics
 
