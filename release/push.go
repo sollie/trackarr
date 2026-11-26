@@ -1,6 +1,8 @@
 package release
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/sollie/trackarr/utils/defaults"
 	"strings"
 	"time"
@@ -33,6 +35,29 @@ type (
 	}
 )
 
+/* Seams */
+
+// PushResult is the PVR's verdict on a pushed release.
+type PushResult struct {
+	Approved   bool
+	Rejections []string
+}
+
+// Pusher delivers a release to a PVR. The default adapter speaks the Sonarr/Radarr v3 api.
+type Pusher interface {
+	PushRelease(pvr *config.PvrConfig, request pushRequest) (*PushResult, error)
+}
+
+// Publisher records and broadcasts a pushed release. The default adapter writes to the
+// database and the websocket releases topic.
+type Publisher interface {
+	Publish(info *config.ReleaseInfo, pvrName string, approved bool) error
+}
+
+type httpPusher struct{}
+
+type dbPublisher struct{}
+
 /* Public */
 
 func (r *Release) Push(pvr *config.PvrConfig, delay *int64, torrentUrl *string) {
@@ -42,7 +67,6 @@ func (r *Release) Push(pvr *config.PvrConfig, delay *int64, torrentUrl *string) 
 	}
 	r.Log.Debugf("Pushing: %s (pvr: %s)", r.Info.TorrentName, pvr.Name)
 
-	// prepare request
 	pvrRequest := pushRequest{
 		Title:            r.Info.TorrentName,
 		DownloadUrl:      *torrentUrl,
@@ -57,18 +81,45 @@ func (r *Release) Push(pvr *config.PvrConfig, delay *int64, torrentUrl *string) 
 		pvrRequest.Size = r.Info.SizeBytes
 	}
 
-	requestUrl := ""
+	pusher := r.Pusher
+	if pusher == nil {
+		pusher = httpPusher{}
+	}
+
+	result, err := pusher.PushRelease(pvr, pvrRequest)
+	if err != nil {
+		r.Log.WithError(err).Errorf("Failed pushing: %s (pvr: %s)", r.Info.TorrentName, pvr.Name)
+		return
+	}
+
+	r.Log.Infof("Pushed: %s (pvr: %s - approved: %v)", r.Info.TorrentName, pvr.Name, result.Approved)
+	if len(result.Rejections) > 0 {
+		r.Log.Tracef("Push rejected: %s (pvr: %s - reasons: %q)", r.Info.TorrentName, pvr.Name,
+			strings.Join(result.Rejections, ", "))
+	}
+
+	publisher := r.Publisher
+	if publisher == nil {
+		publisher = dbPublisher{}
+	}
+
+	if err := publisher.Publish(r.Info, pvr.Name, result.Approved); err != nil {
+		r.Log.WithError(err).Errorf("Failed saving release in database: %q", r.Info.TorrentName)
+	}
+}
+
+/* Adapters */
+
+func (httpPusher) PushRelease(pvr *config.PvrConfig, pvrRequest pushRequest) (*PushResult, error) {
+	requestUrl := pvr.URL
 	if !strings.Contains(pvr.URL, "/api/") {
 		requestUrl = web.JoinURL(pvr.URL, "api/v3/release/push")
-	} else {
-		requestUrl = pvr.URL
 	}
 
 	headers := req.Header{
 		"X-Api-Key": pvr.ApiKey,
 	}
 
-	// send request
 	resp, err := web.GetResponse(web.POST, requestUrl, defaults.GetOrDefaultInt(&pvr.Timeout, 30),
 		req.BodyJSON(&pvrRequest), &web.Retry{
 			MaxAttempts: 6,
@@ -82,52 +133,39 @@ func (r *Release) Push(pvr *config.PvrConfig, delay *int64, torrentUrl *string) 
 			},
 		}, headers)
 	if err != nil {
-		r.Log.WithError(err).Errorf("Failed pushing: %s (pvr: %s)", r.Info.TorrentName, pvr.Name)
-		return
+		return nil, err
 	}
 
 	defer web.DrainAndClose(resp.Response().Body)
 
-	// validate response
 	if resp.Response().StatusCode != 200 {
-		r.Log.Errorf("Failed pushing: %s (pvr: %s - response: %q)", r.Info.TorrentName, pvr.Name,
-			resp.Response().Status)
-		return
+		return nil, fmt.Errorf("unexpected response: %q", resp.Response().Status)
 	}
 
-	// decode response
 	pvrResp := make([]pvrResponse, 0)
 	if err := resp.ToJSON(&pvrResp); err != nil {
-		r.Log.WithError(err).Errorf("Failed decoding push response: %s (pvr: %s)", r.Info.TorrentName, pvr.Name)
-		return
+		return nil, errors.Wrap(err, "failed decoding push response")
 	} else if len(pvrResp) < 1 {
-		r.Log.Errorf("Failed processing push response: %s (pvr: %s)", r.Info.TorrentName, pvr.Name)
-		return
+		return nil, errors.New("empty push response")
 	}
 
-	// log result
-	r.Log.Infof("Pushed: %s (pvr: %s - approved: %v)", r.Info.TorrentName, pvr.Name, pvrResp[0].Approved)
-	if len(pvrResp[0].Rejections) > 0 {
-		r.Log.Tracef("Push rejected: %s (pvr: %s - reasons: %q)", r.Info.TorrentName, pvr.Name,
-			strings.Join(pvrResp[0].Rejections, ", "))
-	}
+	return &PushResult{Approved: pvrResp[0].Approved, Rejections: pvrResp[0].Rejections}, nil
+}
 
-	// save to database
-	dbRelease, err := models.NewPushedRelease(database.DB, r.Info.TorrentName, r.Info.TrackerName, pvr.Name,
-		pvrResp[0].Approved)
+func (dbPublisher) Publish(info *config.ReleaseInfo, pvrName string, approved bool) error {
+	dbRelease, err := models.NewPushedRelease(database.DB, info.TorrentName, info.TrackerName, pvrName, approved)
 	if err != nil {
-		r.Log.WithError(err).Errorf("Failed saving release in database: %q", r.Info.TorrentName)
-		return
+		return err
 	}
 
-	// broadcast release to releases topic
 	pushMessage := &ws.WebsocketMessage{
 		Type: "release",
 		Data: dbRelease,
 	}
 
-	jsonData, err := pushMessage.ToJsonString()
-	if err == nil {
+	if jsonData, err := pushMessage.ToJsonString(); err == nil {
 		ws.BroadcastTopic("releases", jsonData)
 	}
+
+	return nil
 }

@@ -12,4 +12,8 @@ type Release struct {
 	Tracker *config.TrackerInstance
 	Log     *logrus.Entry
 	Info    *config.ReleaseInfo
+
+	// optional adapters, defaulting to the PVR http api and database/websocket publisher
+	Pusher    Pusher
+	Publisher Publisher
 }
