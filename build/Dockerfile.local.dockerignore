@@ -1,0 +1,5 @@
+.git
+dist
+web/trackarr-ui/node_modules
+web/trackarr-ui/dist
+web/rice-box.go

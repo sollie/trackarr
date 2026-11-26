@@ -1,0 +1,26 @@
+# Self-contained build for local testing:
+#   docker build -f build/Dockerfile.local -t trackarr:local .
+FROM node:24-alpine AS ui
+WORKDIR /src/web/trackarr-ui
+COPY web/trackarr-ui/package.json web/trackarr-ui/yarn.lock ./
+RUN yarn install --frozen-lockfile
+COPY web/trackarr-ui/ ./
+RUN yarn build
+
+FROM golang:1.27-alpine AS app
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=ui /src/web/trackarr-ui/dist web/trackarr-ui/dist
+RUN go install github.com/GeertJohan/go.rice/rice@latest \
+ && (cd web && rice embed-go) \
+ && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildVersion=0.0.0-dev -X main.buildGitCommit=local -X main.buildTimestamp=0" -o /trackarr .
+
+FROM sc4h/alpine-s6overlay:3.12
+ENV CONFIG_DIR=/config
+COPY --from=app /trackarr /app/trackarr/trackarr
+COPY ["build/root/", "/"]
+RUN chmod +x /etc/services.d/trackarr/run
+EXPOSE 7337
+VOLUME ["/config"]

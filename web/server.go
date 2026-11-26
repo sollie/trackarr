@@ -58,7 +58,7 @@ func Listen(cfg *config.Configuration, logLevel int) {
 		e.Use(middleware.RequestLogger())
 	}
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: []string{"*"}}))
 
 	// setup validator
 	e.Validator = &CustomValidator{
