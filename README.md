@@ -33,14 +33,3 @@ Supports these trackers: https://github.com/autodl-community/autodl-trackers/tre
 # Installation
 
 See [Wiki](https://gitlab.com/cloudb0x/trackarr/-/wikis/home).
-
-# Donate
-
-If you find this project helpful, feel free to make a small donation to the developer:
-
-  - [GitHub Sponsor](https://github.com/sponsors/l3uddz) - Credit Cards, PayPal, etc
-  - [Monzo](https://monzo.me/today): Credit Cards, Apple Pay, Google Pay
-
-  - [Paypal: l3uddz@gmail.com](https://www.paypal.me/l3uddz)
-
-  - BTC: 3CiHME1HZQsNNcDL6BArG7PbZLa8zUUgjL
