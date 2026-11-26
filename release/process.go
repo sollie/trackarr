@@ -1,7 +1,6 @@
 package release
 
 import (
-	"github.com/docker/go-units"
 	"github.com/sollie/trackarr/cache"
 	"net/url"
 	"strings"
@@ -38,11 +37,6 @@ func (r *Release) getProxiedTorrentURL(cookie *string, pvr string) (string, erro
 /* Public */
 
 func (r *Release) Process() {
-	var err error
-	usedBencode := false
-	usedApi := false
-	addedToCache := false
-
 	r.Log.Tracef("Pre-processing: %s", r.Info.TorrentName)
 
 	// replace https torrent urls with http (if ForceHTTP set)
@@ -50,33 +44,14 @@ func (r *Release) Process() {
 		r.Info.TorrentURL = strings.Replace(r.Info.TorrentURL, "https:", "http:", 1)
 	}
 
-	// api lookup if available for this tracker
-	usedApi, err = r.apiLookup()
+	// fill in missing release information (api / bencode)
+	enrichment, err := r.Enrich()
 	if err != nil {
-		// abort processing this release as an error occurred and bencode was disabled
+		// abort processing this release
 		return
 	}
-
-	// convert parsed release size string to bytes (required by pvr)
-	if r.Info.SizeString != "" {
-		// we have a size string, lets attempt to convert it to bytes
-		if byteSize, err := units.FromHumanSize(r.Info.SizeString); err != nil {
-			r.Log.WithError(err).Warnf("Failed converting parsed release size %q to bytes", r.Info.SizeString)
-			r.Info.SizeBytes = 0
-		} else {
-			r.Info.SizeBytes = byteSize
-			r.Log.Tracef("Converted parsed release size %q to %d bytes", r.Info.SizeString, r.Info.SizeBytes)
-		}
-	}
-
-	// bencode lookup if enabled and api was not used successfully before
-	if !usedApi {
-		usedBencode, addedToCache, err = r.bencodeLookup()
-		if err != nil {
-			r.Log.WithError(err).Error("Failed performing bencode lookup")
-			return
-		}
-	}
+	usedBencode := enrichment.Source == SourceBencode
+	addedToCache := enrichment.AddedToCache
 
 	// was a size available?
 	if r.Info.SizeBytes == 0 {
