@@ -13,7 +13,6 @@ import (
 	"github.com/sollie/trackarr/logger"
 	webutils "github.com/sollie/trackarr/utils/web"
 
-	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
 	"github.com/labstack/echo/v5"
 	"github.com/sirupsen/logrus"
@@ -58,7 +57,7 @@ func Torrent(c *echo.Context) error {
 	log.Infof("Torrent requested: %s", url)
 
 	// set headers
-	headers := req.Header{}
+	headers := webutils.Header{}
 	if cookie != "" {
 		headers["Cookie"] = cookie
 	}
@@ -135,19 +134,19 @@ func Torrent(c *echo.Context) error {
 	}
 
 	// ensure response is drained & closed
-	defer webutils.DrainAndClose(resp.Response().Body)
+	defer webutils.DrainAndClose(resp.Body)
 
 	// validate response status-code
-	if resp.Response().StatusCode != 200 {
-		log.Errorf("Failed retrieving torrent stream: %s (response: %s)", url, resp.Response().Status)
+	if resp.StatusCode != 200 {
+		log.Errorf("Failed retrieving torrent stream: %s (response: %s)", url, resp.Status)
 		return c.JSON(http.StatusInternalServerError, &ErrorResponse{
 			Error:   true,
-			Message: fmt.Sprintf("Failed retrieving torrent: %s", resp.Response().Status),
+			Message: fmt.Sprintf("Failed retrieving torrent: %s", resp.Status),
 		})
 	}
 
 	// validate response content-type
-	respContentType := resp.Response().Header.Get("Content-Type")
+	respContentType := resp.Header.Get("Content-Type")
 	if respContentType == "" || !strings.Contains(respContentType, "torrent") {
 		log.Errorf("Failed retrieving torrent stream: %s (Content-Type: %s)", url, respContentType)
 		return c.JSON(http.StatusInternalServerError, &ErrorResponse{
@@ -157,5 +156,5 @@ func Torrent(c *echo.Context) error {
 	}
 
 	// return torrent stream
-	return c.Stream(http.StatusOK, "application/x-bittorrent", resp.Response().Body)
+	return c.Stream(http.StatusOK, "application/x-bittorrent", resp.Body)
 }

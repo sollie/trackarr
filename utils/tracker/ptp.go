@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"github.com/sollie/trackarr/config"
 	"github.com/sollie/trackarr/utils/web"
@@ -24,7 +23,7 @@ const (
 type Ptp struct {
 	client  *lookupClient
 	tracker *config.TrackerInstance
-	headers req.Header
+	headers web.Header
 	baseURL string
 }
 
@@ -50,7 +49,7 @@ func newPtp(tracker *config.TrackerInstance) (Interface, error) {
 			maxBackoff: 6 * time.Second,
 		},
 		tracker: tracker,
-		headers: req.Header{
+		headers: web.Header{
 			"ApiUser": settings[0],
 			"ApiKey":  settings[1],
 		},
@@ -69,7 +68,7 @@ func (t *Ptp) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 		Method:  web.GET,
 		URL:     t.baseURL,
 		Headers: t.headers,
-		Query:   req.QueryParam{"torrentid": torrent.TorrentId},
+		Query:   web.Query{"torrentid": torrent.TorrentId},
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent info bytes for: %s", torrent.TorrentId)

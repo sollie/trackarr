@@ -1,18 +1,17 @@
 package torrent
 
 import (
+	"github.com/sollie/trackarr/utils/web"
 	"testing"
 
 	"github.com/sollie/trackarr/cache"
-
-	"github.com/imroc/req"
 )
 
 func TestGetTorrentDetails(t *testing.T) {
 	type args struct {
 		torrentUrl string
 		timeout    int
-		headers    req.Header
+		headers    web.Header
 	}
 	tests := []struct {
 		name    string

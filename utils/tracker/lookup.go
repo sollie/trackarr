@@ -3,7 +3,6 @@ package tracker
 import (
 	"time"
 
-	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -29,8 +28,8 @@ type lookupClient struct {
 type lookupRequest struct {
 	Method  web.HTTPMethod
 	URL     string
-	Headers req.Header
-	Query   req.QueryParam
+	Headers web.Header
+	Query   web.Query
 	Body    interface{}
 }
 

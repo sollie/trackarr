@@ -1,6 +1,7 @@
 package release
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sollie/trackarr/utils/defaults"
@@ -13,7 +14,6 @@ import (
 	"github.com/sollie/trackarr/utils/web"
 	"github.com/sollie/trackarr/ws"
 
-	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
 )
 
@@ -116,12 +116,12 @@ func (httpPusher) PushRelease(pvr *config.PvrConfig, pvrRequest pushRequest) (*P
 		requestUrl = web.JoinURL(pvr.URL, "api/v3/release/push")
 	}
 
-	headers := req.Header{
+	headers := web.Header{
 		"X-Api-Key": pvr.ApiKey,
 	}
 
 	resp, err := web.Do(web.Request{Method: web.POST, URL: requestUrl,
-		Timeout: defaults.GetOrDefaultInt(&pvr.Timeout, 30), Body: req.BodyJSON(&pvrRequest), Headers: headers, Retry: &web.Retry{
+		Timeout: defaults.GetOrDefaultInt(&pvr.Timeout, 30), Body: web.JSON{Value: pvrRequest}, Headers: headers, Retry: &web.Retry{
 			MaxAttempts: 6,
 			RetryableStatusCodes: []int{
 				504,
@@ -136,14 +136,14 @@ func (httpPusher) PushRelease(pvr *config.PvrConfig, pvrRequest pushRequest) (*P
 		return nil, err
 	}
 
-	defer web.DrainAndClose(resp.Response().Body)
+	defer web.DrainAndClose(resp.Body)
 
-	if resp.Response().StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected response: %q", resp.Response().Status)
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected response: %q", resp.Status)
 	}
 
 	pvrResp := make([]pvrResponse, 0)
-	if err := resp.ToJSON(&pvrResp); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&pvrResp); err != nil {
 		return nil, errors.Wrap(err, "failed decoding push response")
 	} else if len(pvrResp) < 1 {
 		return nil, errors.New("empty push response")

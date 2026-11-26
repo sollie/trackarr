@@ -10,15 +10,27 @@ import (
 	"github.com/sollie/trackarr/logger"
 	"github.com/sollie/trackarr/utils/lists"
 
-	"github.com/imroc/req"
+	"net/http"
+
+	"github.com/imroc/req/v3"
 	"github.com/jpillora/backoff"
 	"github.com/pkg/errors"
 )
 
 var (
 	// Logging
-	log        = logger.GetLogger("web")
-	httpClient = *req.Client()
+	log = logger.GetLogger("web")
+)
+
+type (
+	// Header holds request headers
+	Header = map[string]string
+	// Query holds url query parameters
+	Query = map[string]string
+	// Form is a url-encoded form request body
+	Form = map[string]string
+	// JSON is a json request body, marshalled from Value
+	JSON struct{ Value interface{} }
 )
 
 /* Structs */
@@ -44,9 +56,9 @@ type Request struct {
 	Method  HTTPMethod
 	URL     string
 	Timeout int // seconds, 0 for none
-	Headers req.Header
-	Query   req.QueryParam
-	// Body is any body accepted by req (req.BodyJSON, req.Param, string, []byte, ...)
+	Headers Header
+	Query   Query
+	// Body is nil, a JSON, or a Form
 	Body       interface{}
 	Retry      *Retry
 	Limiter    *RateLimiter
@@ -54,14 +66,6 @@ type Request struct {
 }
 
 /* Private */
-
-func init() {
-	// dont json escape html
-	req.SetJSONEscapeHTML(false)
-
-	// use timeout from Do
-	httpClient.Timeout = time.Duration(0)
-}
 
 func userAgent() string {
 	if config.Build != nil {
@@ -74,37 +78,38 @@ func userAgent() string {
 /* Public */
 
 // Do sends the request, honouring its rate limiter and retry policy. The caller's Headers are never modified.
-func Do(r Request) (*req.Resp, error) {
+// The caller must drain and close the response body.
+func Do(r Request) (*http.Response, error) {
 	if r.Method != GET && r.Method != POST {
 		log.Error("Request method has not been implemented")
 		return nil, errors.New("request method has not been implemented")
 	}
 
-	// prepare client
-	client := httpClient
-	if r.Timeout > 0 {
-		client.Timeout = time.Duration(r.Timeout) * time.Second
-	}
+	// prepare client (no shared cookies, body is read by the caller)
+	client := req.C().
+		SetCookieJar(nil).
+		DisableAutoReadResponse().
+		DisableKeepAlives().
+		SetTimeout(time.Duration(r.Timeout) * time.Second).
+		SetUserAgent(userAgent())
 	if r.NoRedirect {
-		noRedirect(&client)
+		client.SetRedirectPolicy(req.NoRedirectPolicy())
 	}
 
-	// prepare request inputs
-	headers := req.Header{}
-	for k, v := range r.Headers {
-		headers[k] = v
-	}
-	headers["User-Agent"] = userAgent()
+	build := func() *req.Request {
+		request := client.R().SetHeaders(r.Headers).SetQueryParams(r.Query)
+		switch body := r.Body.(type) {
+		case JSON:
+			request.SetBodyJsonMarshal(body.Value)
+		case *JSON:
+			request.SetBodyJsonMarshal(body.Value)
+		case Form:
+			request.SetFormData(body)
+		}
 
-	inputs := []interface{}{&client, headers}
-	if r.Query != nil {
-		inputs = append(inputs, r.Query)
-	}
-	if r.Body != nil {
-		inputs = append(inputs, r.Body)
+		return request
 	}
 
-	// use a fresh backoff per request, so attempts are never shared with the caller's policy
 	var retry Retry
 	if r.Retry != nil {
 		retry.MaxAttempts = r.Retry.MaxAttempts
@@ -116,7 +121,7 @@ func Do(r Request) (*req.Resp, error) {
 		retry.Max = r.Retry.Max
 	}
 
-	var resp *req.Resp
+	var resp *http.Response
 	var err error
 
 	// Exponential back-off
@@ -127,10 +132,15 @@ func Do(r Request) (*req.Resp, error) {
 			}
 		}
 
+		var response *req.Response
 		if r.Method == GET {
-			resp, err = req.Get(r.URL, inputs...)
+			response, err = build().Get(r.URL)
 		} else {
-			resp, err = req.Post(r.URL, inputs...)
+			response, err = build().Post(r.URL)
+		}
+		resp = nil
+		if response != nil {
+			resp = response.Response
 		}
 
 		// validate response
@@ -150,19 +160,19 @@ func Do(r Request) (*req.Resp, error) {
 			return nil, err
 		}
 
-		log.Tracef("Request URL: %s", resp.Request().URL)
-		log.Tracef("Request Response: %s", resp.Response().Status)
+		log.Tracef("Request URL: %s", resp.Request.URL)
+		log.Tracef("Request Response: %s", resp.Status)
 
 		if retry.MaxAttempts == 0 || retry.Attempt() >= retry.MaxAttempts {
 			break
 		}
 
 		// check status code vs retryable ones
-		if lists.IntListContains(resp.Response().StatusCode, retry.RetryableStatusCodes) {
-			DrainAndClose(resp.Response().Body)
+		if lists.IntListContains(resp.StatusCode, retry.RetryableStatusCodes) {
+			DrainAndClose(resp.Body)
 
 			d := retry.Duration()
-			log.Debugf("Retrying failed request in %s: %d - %q", d, resp.Response().StatusCode, r.URL)
+			log.Debugf("Retrying failed request in %s: %d - %q", d, resp.StatusCode, r.URL)
 
 			time.Sleep(d)
 			continue
@@ -170,12 +180,12 @@ func Do(r Request) (*req.Resp, error) {
 
 		// check response content type vs expected one
 		if retry.ExpectedContentType != "" {
-			contentType := resp.Response().Header.Get("Content-Type")
+			contentType := resp.Header.Get("Content-Type")
 			if !strings.Contains(strings.ToLower(contentType), strings.ToLower(retry.ExpectedContentType)) {
-				DrainAndClose(resp.Response().Body)
+				DrainAndClose(resp.Body)
 
 				d := retry.Duration()
-				log.Debugf("Retrying failed request in %s: %d %s - %q", d, resp.Response().StatusCode, contentType, r.URL)
+				log.Debugf("Retrying failed request in %s: %d %s - %q", d, resp.StatusCode, contentType, r.URL)
 
 				time.Sleep(d)
 				continue
@@ -194,9 +204,9 @@ func BodyBytes(r Request) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer DrainAndClose(resp.Response().Body)
+	defer DrainAndClose(resp.Body)
 
-	body, err := ioutil.ReadAll(resp.Response().Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.WithError(err).Errorf("Failed reading response body for url: %q", r.URL)
 		return nil, errors.Wrap(err, "failed reading url response body")

@@ -2,12 +2,12 @@ package tracker
 
 import (
 	stdjson "encoding/json"
+	"github.com/sollie/trackarr/utils/web"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/imroc/req"
 	"github.com/sirupsen/logrus"
 
 	"github.com/sollie/trackarr/config"
@@ -39,7 +39,7 @@ func TestPtpGetReleaseInfo(t *testing.T) {
 	}, `{"Torrents":[{"Id":"1","Size":"1","ReleaseName":"no"},{"Id":"2","Size":"2048","ReleaseName":"Movie"}]}`)
 	defer srv.Close()
 
-	a := &Ptp{client: testClient(), baseURL: srv.URL, headers: req.Header{"ApiUser": "u", "ApiKey": "k"}}
+	a := &Ptp{client: testClient(), baseURL: srv.URL, headers: web.Header{"ApiUser": "u", "ApiKey": "k"}}
 	info, err := a.GetReleaseInfo(&config.ReleaseInfo{TorrentId: "2"})
 	if err != nil || info.Name != "Movie" || info.Size != "2048" {
 		t.Fatalf("info = %+v, err = %v", info, err)

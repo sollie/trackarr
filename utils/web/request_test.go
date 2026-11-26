@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/imroc/req"
 	"github.com/jpillora/backoff"
 )
 
@@ -19,7 +18,7 @@ func TestDoBasicAndUserAgent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	headers := req.Header{"X-Test": "1"}
+	headers := Header{"X-Test": "1"}
 	body, err := BodyString(Request{Method: GET, URL: srv.URL, Headers: headers})
 	if err != nil || body != "ok" {
 		t.Fatalf("body = %q, err = %v", body, err)
@@ -51,10 +50,10 @@ func TestDoRetriesStatusCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer DrainAndClose(resp.Response().Body)
+	defer DrainAndClose(resp.Body)
 
-	if resp.Response().StatusCode != 200 || calls != 3 {
-		t.Errorf("status = %d, calls = %d", resp.Response().StatusCode, calls)
+	if resp.StatusCode != 200 || calls != 3 {
+		t.Errorf("status = %d, calls = %d", resp.StatusCode, calls)
 	}
 }
 
@@ -77,7 +76,7 @@ func TestDoRetriesUnexpectedContentType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	DrainAndClose(resp.Response().Body)
+	DrainAndClose(resp.Body)
 
 	if calls != 2 {
 		t.Errorf("calls = %d", calls)
@@ -99,9 +98,9 @@ func TestDoNoRedirect(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		DrainAndClose(resp.Response().Body)
-		if resp.Response().StatusCode != want {
-			t.Errorf("NoRedirect=%v: status = %d, want %d", noRedirect, resp.Response().StatusCode, want)
+		DrainAndClose(resp.Body)
+		if resp.StatusCode != want {
+			t.Errorf("NoRedirect=%v: status = %d, want %d", noRedirect, resp.StatusCode, want)
 		}
 	}
 }

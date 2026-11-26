@@ -2,9 +2,9 @@ package release
 
 import (
 	"github.com/docker/go-units"
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/sollie/trackarr/utils/web"
 
 	"github.com/sollie/trackarr/cache"
 	"github.com/sollie/trackarr/config"
@@ -44,7 +44,7 @@ type enricher struct {
 	log     *logrus.Entry
 
 	getAPI       func(*config.TrackerInstance) (tracker.Interface, error)
-	fetchTorrent func(url string, timeout int, headers req.Header) (*torrent.Data, error)
+	fetchTorrent func(url string, timeout int, headers web.Header) (*torrent.Data, error)
 	addToCache   func(key string, item *cache.CacheItem)
 }
 
@@ -161,7 +161,7 @@ func (e *enricher) bencodeLookup() (bool, error) {
 		return false, nil
 	}
 
-	headers := req.Header{}
+	headers := web.Header{}
 	if cookie, ok := e.tracker.Config.Settings["cookie"]; ok {
 		headers["Cookie"] = cookie
 	}

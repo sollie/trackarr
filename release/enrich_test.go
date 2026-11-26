@@ -2,9 +2,9 @@ package release
 
 import (
 	"errors"
+	"github.com/sollie/trackarr/utils/web"
 	"testing"
 
-	"github.com/imroc/req"
 	"github.com/sirupsen/logrus"
 
 	"github.com/sollie/trackarr/cache"
@@ -38,7 +38,7 @@ func newEnricher(api tracker.Interface, bencodeName, bencodeSize bool, td *torre
 			}
 			return api, nil
 		},
-		fetchTorrent: func(string, int, req.Header) (*torrent.Data, error) { return td, fetchErr },
+		fetchTorrent: func(string, int, web.Header) (*torrent.Data, error) { return td, fetchErr },
 		addToCache:   func(string, *cache.CacheItem) { cached++ },
 	}, info, &cached
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"github.com/sollie/trackarr/config"
 	"github.com/sollie/trackarr/utils/web"
@@ -36,7 +35,7 @@ var (
 type Mtv struct {
 	client        *lookupClient
 	tracker       *config.TrackerInstance
-	loginBody     req.Param
+	loginBody     web.Form
 	loginURL      string
 	torrentURL    string
 	mtx           sync.Mutex
@@ -70,11 +69,11 @@ func newMtv(tracker *config.TrackerInstance) (Interface, error) {
 		tracker:    tracker,
 		loginURL:   mtvLoginUrl,
 		torrentURL: mtvTorrentUrl,
-		loginBody: req.Param{
+		loginBody: web.Form{
 			"username":   settings[0],
 			"password":   settings[1],
 			"login":      "Log in",
-			"keeplogged": 1,
+			"keeplogged": "1",
 		},
 		loginAttempts: 0,
 	}, nil
@@ -119,15 +118,15 @@ func (t *Mtv) login() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed logging into %q", t.tracker.Name)
 	}
-	defer web.DrainAndClose(resp.Response().Body)
+	defer web.DrainAndClose(resp.Body)
 
 	// validate response
-	if resp.Response().StatusCode != 302 {
-		return fmt.Errorf("failed validating login response, status: %s", resp.Response().Status)
+	if resp.StatusCode != 302 {
+		return fmt.Errorf("failed validating login response, status: %s", resp.Status)
 	}
 
 	// validate cookie
-	cookies := resp.Response().Cookies()
+	cookies := resp.Cookies()
 	t.client.log.Tracef("Login response cookies: %v", cookies)
 
 	for _, cookie := range cookies {
@@ -206,7 +205,7 @@ func (t *Mtv) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	mtvReleaseAsBytes, err := t.client.fetch(lookupRequest{
 		Method: web.GET,
 		URL:    t.torrentURL,
-		Query: req.QueryParam{
+		Query: web.Query{
 			"action": "torrent",
 			"id":     torrentId,
 		},

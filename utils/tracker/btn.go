@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 	"github.com/sollie/trackarr/config"
 	"github.com/sollie/trackarr/utils/web"
@@ -85,13 +84,13 @@ func (t *Btn) GetReleaseInfo(torrent *config.ReleaseInfo) (*TorrentInfo, error) 
 	body, err := t.client.fetch(lookupRequest{
 		Method:  web.POST,
 		URL:     t.baseURL,
-		Headers: req.Header{"Content-Type": "application/json"},
-		Body: req.BodyJSON(btnRequest{
+		Headers: web.Header{"Content-Type": "application/json"},
+		Body: web.JSON{Value: btnRequest{
 			Id:      1,
 			JsonRPC: "2.0",
 			Method:  "getTorrentById",
 			Params:  [2]string{t.apiKey, torrentId},
-		}),
+		}},
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed retrieving torrent bytes from: %s", torrentId)

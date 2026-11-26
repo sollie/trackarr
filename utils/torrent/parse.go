@@ -8,7 +8,6 @@ import (
 	"github.com/sollie/trackarr/utils/web"
 
 	bencode "github.com/IncSW/go-bencode"
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +15,7 @@ var ()
 
 /* Public */
 
-func GetTorrentDetails(torrentUrl string, timeout int, headers req.Header) (*Data, error) {
+func GetTorrentDetails(torrentUrl string, timeout int, headers web.Header) (*Data, error) {
 	// retrieve torrent file
 	torrentBytes, err := web.BodyBytes(web.Request{Method: web.GET, URL: torrentUrl, Timeout: timeout, Headers: headers, Retry: &web.Retry{
 		MaxAttempts:         6,

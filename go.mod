@@ -13,7 +13,7 @@ require (
 	github.com/expr-lang/expr v1.18.1
 	github.com/foolin/goview v0.3.0
 	github.com/go-playground/validator/v10 v10.30.6
-	github.com/imroc/req v0.3.2
+	github.com/imroc/req/v3 v3.61.0
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/jpillora/backoff v1.1.0
 	github.com/json-iterator/go v1.1.12
@@ -33,6 +33,7 @@ require (
 )
 
 require (
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/antchfx/xpath v1.3.9 // indirect
 	github.com/daaku/go.zipexe v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
@@ -41,7 +42,10 @@ require (
 	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/icholy/digest v1.2.0 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
@@ -51,6 +55,9 @@ require (
 	github.com/onsi/ginkgo v1.14.2 // indirect
 	github.com/onsi/gomega v1.10.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/quic-go/quic-go v0.61.0 // indirect
+	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect

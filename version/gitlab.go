@@ -1,12 +1,12 @@
 package version
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/sollie/trackarr/utils/web"
 
-	"github.com/imroc/req"
 	"github.com/pkg/errors"
 )
 
@@ -20,7 +20,7 @@ type GitlabRelease struct {
 
 func gitlabReleases(apiUrl string, privateToken string) ([]GitlabRelease, error) {
 	// set headers
-	headers := req.Header{}
+	headers := web.Header{}
 	if privateToken != "" {
 		headers["PRIVATE-TOKEN"] = privateToken
 	}
@@ -31,17 +31,17 @@ func gitlabReleases(apiUrl string, privateToken string) ([]GitlabRelease, error)
 		return nil, errors.Wrapf(err, "invalid gitlab releases response from: %q", apiUrl)
 	}
 
-	defer web.DrainAndClose(resp.Response().Body)
+	defer web.DrainAndClose(resp.Body)
 
 	// validate response
-	if resp.Response().StatusCode != 200 {
+	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("bad gitlab releases response from: %q, resp = %s",
-			apiUrl, resp.Response().Status)
+			apiUrl, resp.Status)
 	}
 
 	// decode response
 	var releases []GitlabRelease
-	if err := resp.ToJSON(&releases); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
 		return nil, errors.Wrap(err, "failed decoding gitlab releases response")
 	}
 
